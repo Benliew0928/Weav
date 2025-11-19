@@ -66,7 +66,7 @@ export default function AboutPage() {
               <p className="text-body leading-relaxed">
                 We believe that ideas are not isolated—they form a rich, interconnected web of knowledge. 
                 Weav makes these connections visible and explorable. By representing conversations spatially, 
-                we enable users to navigate the "mind garden" of collective thought, discovering patterns, 
+                we enable users to navigate the &quot;mind garden&quot; of collective thought, discovering patterns, 
                 relationships, and insights that might otherwise remain hidden.
               </p>
             </section>
@@ -110,7 +110,7 @@ export default function AboutPage() {
               <p className="text-body leading-relaxed">
                 Weav is built with cutting-edge web technologies including React Three Fiber for 3D rendering, 
                 Next.js for performance, and modern design principles that ensure a smooth, accessible experience 
-                across all devices. We're committed to open standards, privacy, and creating tools that empower 
+                across all devices. We&apos;re committed to open standards, privacy, and creating tools that empower 
                 users to think and communicate more effectively.
               </p>
             </section>
@@ -122,9 +122,9 @@ export default function AboutPage() {
                 Join Us
               </h2>
               <p className="text-body leading-relaxed">
-                Weav is more than a platform—it's a community of thinkers, creators, and explorers. 
-                Whether you're sharing ideas, discovering new perspectives, or building connections, 
-                you're part of a growing network of minds weaving together the future of conversation.
+                Weav is more than a platform—it&apos;s a community of thinkers, creators, and explorers. 
+                Whether you&apos;re sharing ideas, discovering new perspectives, or building connections, 
+                you&apos;re part of a growing network of minds weaving together the future of conversation.
               </p>
             </section>
           </div>

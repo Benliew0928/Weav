@@ -74,7 +74,7 @@ export default function TermsPage() {
                 <li>• Use the materials for any commercial purpose or for any public display</li>
                 <li>• Attempt to reverse engineer any software contained on Weav</li>
                 <li>• Remove any copyright or other proprietary notations from the materials</li>
-                <li>• Transfer the materials to another person or "mirror" the materials on any other server</li>
+                <li>• Transfer the materials to another person or &quot;mirror&quot; the materials on any other server</li>
               </ul>
             </section>
 
@@ -124,7 +124,7 @@ export default function TermsPage() {
                 <li>• Post false, misleading, or deceptive content</li>
                 <li>• Harass, abuse, or harm other users</li>
                 <li>• Spam or send unsolicited communications</li>
-                <li>• Interfere with or disrupt the platform's operation</li>
+                <li>• Interfere with or disrupt the platform&apos;s operation</li>
                 <li>• Attempt to gain unauthorized access to any part of the platform</li>
                 <li>• Use automated systems to access the platform without permission</li>
               </ul>
@@ -158,7 +158,7 @@ export default function TermsPage() {
                 theme === 'dark' ? 'text-white' : 'text-gray-900'
               }`}>Disclaimer</h2>
               <p className="text-body leading-relaxed">
-                The materials on Weav are provided on an "as is" basis. Weav makes no warranties, expressed 
+                The materials on Weav are provided on an &quot;as is&quot; basis. Weav makes no warranties, expressed 
                 or implied, and hereby disclaims and negates all other warranties including, without limitation, 
                 implied warranties or conditions of merchantability, fitness for a particular purpose, or 
                 non-infringement of intellectual property or other violation of rights.
@@ -194,7 +194,7 @@ export default function TermsPage() {
               }`}>Changes to Terms</h2>
               <p className="text-body leading-relaxed">
                 We reserve the right to modify these Terms at any time. We will notify users of any material 
-                changes by posting the updated Terms on this page and updating the "Last updated" date. 
+                changes by posting the updated Terms on this page and updating the &quot;Last updated&quot; date. 
                 Your continued use of Weav after such changes constitutes acceptance of the updated Terms.
               </p>
             </section>

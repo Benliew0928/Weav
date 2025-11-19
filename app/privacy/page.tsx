@@ -166,7 +166,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className={`text-2xl font-semibold mb-4 ${
                 theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>Children's Privacy</h2>
+              }`}>Children&apos;s Privacy</h2>
               <p className="text-body leading-relaxed">
                 Weav is not intended for users under the age of 13. We do not knowingly collect personal 
                 information from children under 13. If you believe we have collected information from a 
@@ -180,7 +180,7 @@ export default function PrivacyPage() {
               }`}>Changes to This Policy</h2>
               <p className="text-body leading-relaxed">
                 We may update this Privacy Policy from time to time. We will notify you of any material 
-                changes by posting the new policy on this page and updating the "Last updated" date. 
+                changes by posting the new policy on this page and updating the &quot;Last updated&quot; date. 
                 Your continued use of Weav after such changes constitutes acceptance of the updated policy.
               </p>
             </section>
