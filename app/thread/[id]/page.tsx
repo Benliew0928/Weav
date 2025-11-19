@@ -12,6 +12,8 @@ import { ReactionBar } from '@/components/ReactionBar'
 import { formatTimeAgo } from '@/lib/utils'
 import { ChatRoomView } from '@/components/ChatRoomView'
 
+export const runtime = 'edge'
+
 export default function ThreadDetailPage() {
   const params = useParams()
   const router = useRouter()
