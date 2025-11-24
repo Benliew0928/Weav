@@ -1,61 +1,60 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Bell, Heart, MessageCircle, UserPlus } from 'lucide-react'
+import { Bell, Heart, MessageCircle, UserPlus, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useWeavStore } from '@/store/useWeavStore'
-
-interface Notification {
-  id: string
-  type: 'like' | 'comment' | 'follow'
-  message: string
-  timestamp: Date
-  threadId?: string
-  read: boolean
-}
-
-const sampleNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'like',
-    message: 'alex_weaver liked your thread',
-    timestamp: new Date(Date.now() - 5 * 60 * 1000),
-    threadId: '1',
-    read: false,
-  },
-  {
-    id: '2',
-    type: 'comment',
-    message: 'sam_thoughts commented on your thread',
-    timestamp: new Date(Date.now() - 30 * 60 * 1000),
-    threadId: '1',
-    read: false,
-  },
-  {
-    id: '3',
-    type: 'follow',
-    message: 'maya_ideas started following you',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    read: true,
-  },
-  {
-    id: '4',
-    type: 'like',
-    message: 'jordan_flow liked your thread',
-    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-    threadId: '2',
-    read: true,
-  },
-]
+import { subscribeToNotifications, markNotificationAsRead, Notification } from '@/lib/firebase/notifications'
 
 const iconMap = {
+  new_thread: Sparkles,
   like: Heart,
   comment: MessageCircle,
   follow: UserPlus,
 }
 
 export default function NotificationsPage() {
-  const { theme } = useWeavStore()
+  const { theme, currentUserId, isAuthenticated } = useWeavStore()
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!isAuthenticated || !currentUserId) {
+      setLoading(false)
+      return
+    }
+
+    const unsubscribe = subscribeToNotifications(
+      currentUserId,
+      (updatedNotifications) => {
+        setNotifications(updatedNotifications)
+        setLoading(false)
+      },
+      (error) => {
+        console.error('Error loading notifications:', error)
+        setLoading(false)
+      }
+    )
+
+    return () => {
+      unsubscribe()
+    }
+  }, [isAuthenticated, currentUserId])
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!currentUserId || notification.read) return
+    
+    try {
+      await markNotificationAsRead(currentUserId, notification.id)
+      // Update local state
+      setNotifications(prev =>
+        prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
+      )
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+    }
+  }
   
   return (
     <div className={`h-full overflow-y-auto transition-colors duration-300 ${
@@ -83,15 +82,21 @@ export default function NotificationsPage() {
           </div>
 
           <div className="space-y-2">
-            {sampleNotifications.length === 0 ? (
+            {loading ? (
+              <p className={`text-center py-12 ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Loading notifications...
+              </p>
+            ) : notifications.length === 0 ? (
               <p className={`text-center py-12 ${
                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
               }`}>
                 No notifications yet.
               </p>
             ) : (
-              sampleNotifications.map((notification, index) => {
-                const Icon = iconMap[notification.type]
+              notifications.map((notification, index) => {
+                const Icon = iconMap[notification.type] || Bell
                 return (
                   <motion.div
                     key={notification.id}
@@ -107,6 +112,7 @@ export default function NotificationsPage() {
                     <Link
                       href={notification.threadId ? `/thread/${notification.threadId}` : '#'}
                       className="block"
+                      onClick={() => handleNotificationClick(notification)}
                     >
                       <div
                         className={`glass rounded-card p-4 border transition-colors ${

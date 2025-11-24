@@ -12,7 +12,8 @@ export function ThreadListView() {
     <div 
       className="h-full overflow-y-auto transition-colors duration-300"
       style={{
-        backgroundColor: theme === 'light' ? '#ffffff' : 'transparent'
+        backgroundColor: theme === 'light' ? '#ffffff' : 'transparent',
+        paddingTop: '4rem'
       }}
     >
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">

@@ -6,6 +6,7 @@ import { sampleThreads, currentUser } from '@/data/sampleThreads'
 interface WeavState {
   // User
   currentUser: User
+  currentUserId: string | null
   isAuthenticated: boolean
 
   // Threads
@@ -36,6 +37,9 @@ interface WeavState {
 
   // Actions
   setAuthenticated: (auth: boolean) => void
+  setCurrentUserId: (userId: string | null) => void
+  setCurrentUser: (user: User) => void
+  syncThreadsFromFirebase: (threads: Thread[]) => void
   rotateRing: (delta: number) => void
   setVerticalRotation: (rotation: number) => void
   setAngularVelocity: (velocity: number) => void
@@ -57,6 +61,7 @@ interface WeavState {
   addThread: (thread: Thread) => void
   addComment: (threadId: string, comment: Comment) => void
   updateCurrentUser: (updates: Partial<User>) => void
+  logout: () => void
 }
 
 export const useWeavStore = create<WeavState>()(
@@ -64,8 +69,10 @@ export const useWeavStore = create<WeavState>()(
     (set) => ({
   // Initial state
   currentUser,
+  currentUserId: null,
   isAuthenticated: false,
-  threads: sampleThreads,
+  // Start with no threads – real threads come from Firestore
+  threads: [],
   selectedThreadId: null,
   ringRotation: 0,
   verticalRotation: 0,
@@ -86,6 +93,9 @@ export const useWeavStore = create<WeavState>()(
 
   // Actions
   setAuthenticated: (auth) => set({ isAuthenticated: auth }),
+  setCurrentUserId: (userId) => set({ currentUserId: userId }),
+  setCurrentUser: (user) => set({ currentUser: user }),
+  syncThreadsFromFirebase: (threads) => set({ threads }),
   rotateRing: (delta) =>
     set((state) => ({ ringRotation: state.ringRotation + delta })),
   setVerticalRotation: (rotation) =>
@@ -209,12 +219,23 @@ export const useWeavStore = create<WeavState>()(
         ),
       }
     }),
+  logout: () =>
+    set(() => ({
+      isAuthenticated: false,
+      currentUserId: null,
+      // Keep currentUser for now; it will be overwritten on next login
+      threads: [],
+      selectedThreadId: null,
+      isThreadDetailOpen: false,
+    })),
     }),
     {
       name: 'weav-storage',
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
         theme: state.theme,
+        currentUser: state.currentUser,
+        currentUserId: state.currentUserId,
       }),
       skipHydration: false,
     }

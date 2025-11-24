@@ -79,6 +79,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* On small screens, allow vertical scroll so header/footer are always reachable */
+@media (max-width: 768px) {
+  html,
+  body {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+}
+
 html.light,
 html.light body,
 body.light {

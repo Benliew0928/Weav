@@ -5,8 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import * as Dialog from '@radix-ui/react-dialog'
 import { X, Check } from 'lucide-react'
 import { useWeavStore } from '@/store/useWeavStore'
-import { Thread, currentUser } from '@/data/sampleThreads'
+import { Thread } from '@/data/sampleThreads'
 import { triggerHaptic } from '@/lib/perf'
+import { createThread, updateThreadImage } from '@/lib/firebase/threads'
+import { notifyNewThread } from '@/lib/firebase/notifications'
+import { getDocs, collection } from 'firebase/firestore'
+import { db } from '@/lib/firebase/config'
+import { uploadThreadImage } from '@/lib/firebase/storage'
 
 const availableTags = [
   'AI',
@@ -22,48 +27,99 @@ const availableTags = [
 ]
 
 export function CreateThreadModal() {
-  const { isCreateThreadOpen, setCreateThreadOpen, addThread, theme } = useWeavStore()
+  const { isCreateThreadOpen, setCreateThreadOpen, currentUser, theme, currentUserId } = useWeavStore()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [icon, setIcon] = useState('💬')
   const [image, setImage] = useState<string | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
-
-    const newThread: Thread = {
-      id: Date.now().toString(),
-      title: title.trim(),
-      description: description.trim(),
-      author: currentUser,
-      icon,
-      image: image || undefined,
-      tags: selectedTags,
-      createdAt: new Date(),
-      reactions: [],
-      comments: [],
-      unread: false,
+    if (!currentUser || !currentUserId) {
+      setError('You must be logged in to create a thread')
+      return
     }
 
-    addThread(newThread)
-    triggerHaptic([20, 50, 20])
+    try {
+      setLoading(true)
+      setError(null)
 
-    // Show success animation
-    setShowSuccess(true)
-    setTimeout(() => {
-      setShowSuccess(false)
-      setTitle('')
-      setDescription('')
-      setSelectedTags([])
-      setIcon('💬')
-      setImage(null)
-      setImagePreview(null)
-      setCreateThreadOpen(false)
-    }, 1000)
+      // Create thread first (without image)
+      const newThreadData: Omit<Thread, 'id' | 'createdAt'> = {
+        title: title.trim(),
+        description: description.trim(),
+        author: currentUser,
+        icon,
+        image: undefined, // Will be set after upload
+        tags: selectedTags,
+        reactions: [],
+        comments: [],
+        unread: false,
+      }
+
+      const threadId = await createThread(newThreadData)
+
+      // Upload image to Firebase Storage if present (after thread is created)
+      if (imageFile) {
+        try {
+          const imageUrl = await uploadThreadImage(imageFile, threadId)
+          // Update thread with image URL
+          await updateThreadImage(threadId, imageUrl)
+        } catch (uploadError: any) {
+          console.error('Error uploading image:', uploadError)
+          setError('Thread created but failed to upload image. Please try again.')
+          setLoading(false)
+          return
+        }
+      }
+      triggerHaptic([20, 50, 20])
+
+      // Create notifications for all users (simplified - in production, optimize this)
+      try {
+        if (db) {
+          const usersSnapshot = await getDocs(collection(db, 'users'))
+          // Notify all known users (including the creator) so you can see notifications while testing
+          const userIds = usersSnapshot.docs.map(doc => doc.id)
+          if (userIds.length > 0) {
+            await notifyNewThread(
+              threadId,
+              newThreadData.title,
+              currentUser.displayName || currentUser.username,
+              userIds
+            )
+          }
+        }
+      } catch (notifError) {
+        console.error('Error creating notifications:', notifError)
+        // Don't fail thread creation if notifications fail
+      }
+
+      // Show success animation
+      setShowSuccess(true)
+      setTimeout(() => {
+        setShowSuccess(false)
+        setTitle('')
+        setDescription('')
+        setSelectedTags([])
+        setIcon('💬')
+        setImage(null)
+        setImagePreview(null)
+        setImageFile(null)
+        setCreateThreadOpen(false)
+        setLoading(false)
+      }, 1000)
+    } catch (err: any) {
+      console.error('Error creating thread:', err)
+      setError(err.message || 'Failed to create thread')
+      setLoading(false)
+    }
   }
 
   const toggleTag = (tag: string) => {
@@ -78,21 +134,23 @@ export function CreateThreadModal() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file')
+      setError('Please select an image file')
       return
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size must be less than 5MB')
+    // Validate file size (max 10MB before compression)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image size must be less than 10MB')
       return
     }
 
-    // Convert to base64
+    // Store the file for upload
+    setImageFile(file)
+
+    // Create preview (base64 for preview only)
     const reader = new FileReader()
     reader.onloadend = () => {
       const base64String = reader.result as string
-      setImage(base64String)
       setImagePreview(base64String)
     }
     reader.readAsDataURL(file)
@@ -101,6 +159,7 @@ export function CreateThreadModal() {
   const handleRemoveImage = () => {
     setImage(null)
     setImagePreview(null)
+    setImageFile(null)
   }
 
   return (
@@ -120,9 +179,7 @@ export function CreateThreadModal() {
             </Dialog.Overlay>
             <Dialog.Content asChild>
               <motion.div
-                className={`fixed inset-4 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-auto sm:w-full sm:max-w-2xl h-[calc(100vh-2rem)] sm:h-auto overflow-y-auto glass rounded-card p-4 sm:p-6 md:p-8 z-50 border transition-colors ${
-                  theme === 'dark' ? 'border-white/10' : 'border-gray-200/50'
-                }`}
+                className="fixed inset-0 z-50 flex items-center justify-center p-4"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
@@ -131,32 +188,41 @@ export function CreateThreadModal() {
                   stiffness: 240,
                   damping: 28,
                 }}
-                style={{
-                  maxHeight: 'min(85vh, calc(100vh - 4rem))',
-                }}
               >
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <Dialog.Title className={`text-lg sm:text-page-title font-semibold ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>
-                    Create New Thread
-                  </Dialog.Title>
-                  <Dialog.Close asChild>
-                    <button
-                      className={`p-2 rounded-button transition-colors ${
-                        theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-                      }`}
-                      aria-label="Close"
-                    >
-                      <X className={`w-5 h-5 ${
-                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                      }`} />
-                    </button>
-                  </Dialog.Close>
-                </div>
+                <div
+                  className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto glass rounded-card p-4 sm:p-6 md:p-8 border transition-colors ${
+                    theme === 'dark' ? 'border-white/10' : 'border-gray-200/50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-4 sm:mb-6">
+                    <Dialog.Title className={`text-lg sm:text-page-title font-semibold ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>
+                      Create New Thread
+                    </Dialog.Title>
+                    <Dialog.Close asChild>
+                      <button
+                        className={`p-2 rounded-button transition-colors ${
+                          theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+                        }`}
+                        aria-label="Close"
+                      >
+                        <X className={`w-5 h-5 ${
+                          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`} />
+                      </button>
+                    </Dialog.Close>
+                  </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 pb-4">
-                  <div>
+                  <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+                    {error && (
+                      <div className={`p-3 rounded-button text-sm ${
+                        theme === 'dark' ? 'bg-red-500/20 text-red-400' : 'bg-red-50 text-red-600'
+                      }`}>
+                        {error}
+                      </div>
+                    )}
+                    <div>
                     <label className={`block text-small font-medium mb-2 ${
                       theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
                     }`}>
@@ -323,9 +389,9 @@ export function CreateThreadModal() {
                     <motion.button
                       type="submit"
                       className="px-4 sm:px-6 py-2.5 sm:py-2 rounded-button gradient-primary text-white font-medium text-sm sm:text-base shadow-lg hover:opacity-90 transition-opacity relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                      whileHover={{ scale: title.trim() ? 1.02 : 1 }}
-                      whileTap={{ scale: title.trim() ? 0.98 : 1 }}
-                      disabled={!title.trim()}
+                      whileHover={{ scale: title.trim() && !loading ? 1.02 : 1 }}
+                      whileTap={{ scale: title.trim() && !loading ? 0.98 : 1 }}
+                      disabled={!title.trim() || loading}
                     >
                       {showSuccess ? (
                         <motion.div
@@ -336,12 +402,15 @@ export function CreateThreadModal() {
                           <Check className="w-5 h-5" />
                           <span>Posted!</span>
                         </motion.div>
+                      ) : loading ? (
+                        'Creating...'
                       ) : (
                         'Post Thread'
                       )}
                     </motion.button>
                   </div>
                 </form>
+                </div>
               </motion.div>
             </Dialog.Content>
           </Dialog.Portal>

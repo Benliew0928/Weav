@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageBubble } from './MessageBubble'
 import { TypingIndicator } from './TypingIndicator'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
-import { ChatMessage } from '@/data/sampleChatMessages'
+import { ChatMessage } from '@/lib/firebase/messages'
 import { User } from '@/data/sampleThreads'
 import { useWeavStore } from '@/store/useWeavStore'
 
@@ -13,9 +13,19 @@ interface MessageListProps {
   messages: ChatMessage[]
   typingUsers: User[]
   messagesEndRef: React.RefObject<HTMLDivElement>
+  onReaction: (messageId: string, emoji: string) => void
+  onEdit: (messageId: string, newContent: string) => void
+  onDelete: (messageId: string) => void
 }
 
-export function MessageList({ messages, typingUsers, messagesEndRef }: MessageListProps) {
+const MessageListComponent = ({
+  messages,
+  typingUsers,
+  messagesEndRef,
+  onReaction,
+  onEdit,
+  onDelete
+}: MessageListProps) => {
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -62,10 +72,17 @@ export function MessageList({ messages, typingUsers, messagesEndRef }: MessageLi
       >
         <AnimatePresence initial={false}>
           {messages.map((message, index) => {
-            const isOwnMessage = message.author.id === currentUser.id
-            const showAvatar = !isOwnMessage && (
-              index === 0 || messages[index - 1].author.id !== message.author.id
-            )
+            const isOwnMessage = currentUser ? message.author.id === currentUser.id : false
+
+            // Determine grouping
+            const previousMessage = messages[index - 1]
+            const nextMessage = messages[index + 1]
+
+            const isFirstInGroup = !previousMessage || previousMessage.author.id !== message.author.id
+            const isLastInGroup = !nextMessage || nextMessage.author.id !== message.author.id
+            const isMiddleInGroup = !isFirstInGroup && !isLastInGroup
+
+            const showAvatar = !isOwnMessage && isLastInGroup
 
             return (
               <MessageBubble
@@ -73,7 +90,14 @@ export function MessageList({ messages, typingUsers, messagesEndRef }: MessageLi
                 message={message}
                 isOwnMessage={isOwnMessage}
                 showAvatar={showAvatar}
+                isFirstInGroup={isFirstInGroup}
+                isLastInGroup={isLastInGroup}
+                isMiddleInGroup={isMiddleInGroup}
                 index={index}
+                onReaction={onReaction}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                currentUserId={currentUser?.id || null}
               />
             )
           })}
@@ -93,4 +117,6 @@ export function MessageList({ messages, typingUsers, messagesEndRef }: MessageLi
     </div>
   )
 }
+
+export const MessageList = memo(MessageListComponent)
 

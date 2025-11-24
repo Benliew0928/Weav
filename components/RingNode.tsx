@@ -16,15 +16,17 @@ interface RingNodeProps {
   isSelected?: boolean
   isFocusLocked?: boolean
   transitionPhase?: 'idle' | 'focusing' | 'detaching' | 'expanding' | 'expanded' | 'collapsing'
+  isDragging?: boolean
 }
 
-export function RingNode({ 
-  thread, 
-  position, 
-  onSelect, 
-  isSelected, 
+export function RingNode({
+  thread,
+  position,
+  onSelect,
+  isSelected,
   isFocusLocked = false,
   transitionPhase = 'idle',
+  isDragging = false,
 }: RingNodeProps) {
   const { theme } = useWeavStore()
   const meshRef = useRef<THREE.Mesh>(null)
@@ -36,24 +38,24 @@ export function RingNode({
   useFrame((state) => {
     if (meshRef.current) {
       const isDetaching = isSelected && (transitionPhase === 'detaching' || transitionPhase === 'expanding')
-      
+
       if (!isDetaching) {
         const time = state.clock.elapsedTime
         const floatX = Math.sin(time * 0.8 + position[0]) * 0.03
         const floatY = Math.sin(time * 1.2 + position[1]) * 0.03
         const floatZ = Math.cos(time * 1.0 + position[2]) * 0.03
-        
+
         meshRef.current.position.x = position[0] + floatX
         meshRef.current.position.y = position[1] + floatY
         meshRef.current.position.z = position[2] + floatZ
       }
     }
   })
-  
+
   // Calculate depth-based blur and opacity for focus lock
   const { camera } = useThree()
   const [depthFactor, setDepthFactor] = useState(1)
-  
+
   useFrame(() => {
     if (isFocusLocked && !isSelected) {
       // Calculate distance from camera to node
@@ -99,7 +101,7 @@ export function RingNode({
         onPointerOut={() => setHovered(false)}
         onClick={(e) => {
           // Only handle click if not dragging
-          if (!e.nativeEvent.buttons) {
+          if (!e.nativeEvent.buttons && !isDragging) {
             e.stopPropagation()
             handleClick()
           }
@@ -123,7 +125,7 @@ export function RingNode({
       >
         <motion.div
           className="flex flex-col items-center cursor-pointer select-none"
-          animate={{ 
+          animate={{
             scale,
             opacity: isFocusLocked && !isSelected ? 0.3 + depthFactor * 0.4 : 1,
             filter: isFocusLocked && !isSelected ? `blur(${(1 - depthFactor) * 8}px)` : 'blur(0px)',
@@ -142,7 +144,7 @@ export function RingNode({
           onClick={(e) => {
             // Only handle click if not dragging (no buttons pressed)
             const pointerEvent = e.nativeEvent as PointerEvent
-            if (!pointerEvent.buttons) {
+            if (!pointerEvent.buttons && !isDragging) {
               e.stopPropagation()
               handleClick()
             }
@@ -164,17 +166,16 @@ export function RingNode({
         >
           {/* Node circle with enhanced glow - theme-aware */}
           <div
-            className={`relative w-18 h-18 rounded-full flex items-center justify-center text-3xl transition-all overflow-hidden ${
-              hovered || isSelected
-                ? theme === 'dark' 
-                  ? 'ring-4 ring-primary-mid/60 shadow-2xl shadow-primary-mid/50'
-                  : 'ring-4 ring-primary-mid/80 shadow-2xl shadow-primary-mid/60'
-                : theme === 'dark'
-                  ? 'ring-2 ring-primary-start/40'
-                  : 'ring-2 ring-primary-start/60'
-            } ${thread.unread ? 'animate-unread-pulse' : ''}`}
+            className={`relative w-18 h-18 rounded-full flex items-center justify-center text-3xl transition-all overflow-hidden ${hovered || isSelected
+              ? theme === 'dark'
+                ? 'ring-4 ring-primary-mid/60 shadow-2xl shadow-primary-mid/50'
+                : 'ring-4 ring-primary-mid/80 shadow-2xl shadow-primary-mid/60'
+              : theme === 'dark'
+                ? 'ring-2 ring-primary-start/40'
+                : 'ring-2 ring-primary-start/60'
+              } ${thread.unread ? 'animate-unread-pulse' : ''}`}
             style={{
-              background: thread.image 
+              background: thread.image
                 ? 'transparent'
                 : hovered || isSelected
                   ? 'linear-gradient(135deg, #7F7FFF, #A06CFF, #FF88C6)'
@@ -204,9 +205,8 @@ export function RingNode({
 
           {/* Label with better visibility - theme-aware */}
           <div
-            className={`mt-2 text-small font-semibold text-center max-w-[90px] transition-all ${
-              theme === 'dark' ? 'text-white' : 'text-gray-800'
-            } ${hovered || isSelected ? 'opacity-100 scale-105' : 'opacity-80'}`}
+            className={`mt-2 text-small font-semibold text-center max-w-[90px] transition-all ${theme === 'dark' ? 'text-white' : 'text-gray-800'
+              } ${hovered || isSelected ? 'opacity-100 scale-105' : 'opacity-80'}`}
             style={{
               textShadow: theme === 'dark'
                 ? '0 2px 12px rgba(0, 0, 0, 0.8), 0 0 8px rgba(127, 127, 255, 0.3)'

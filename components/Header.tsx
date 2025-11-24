@@ -7,15 +7,26 @@ import { Avatar } from './Avatar'
 import { ThemeToggle } from './ThemeToggle'
 import { ViewToggle } from './ViewToggle'
 import { useWeavStore } from '@/store/useWeavStore'
+import { signOut } from '@/lib/firebase/auth'
 
 export function Header() {
   const pathname = usePathname()
-  const { currentUser, isAuthenticated, theme } = useWeavStore()
+  const { currentUser, isAuthenticated, theme, logout } = useWeavStore()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  const handleLogout = async () => {
+    try {
+      await signOut()
+    } catch (error) {
+      console.error('Error signing out:', error)
+    } finally {
+      logout()
+    }
+  }
 
   if (pathname === '/login') return null
 
@@ -93,13 +104,24 @@ export function Header() {
               </Link>
             )}
             <ThemeToggle />
-            {!isAuthenticated && (
+            {!isAuthenticated ? (
               <Link
                 href="/login"
                 className="px-4 py-2 rounded-button gradient-primary text-white text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 Sign In
               </Link>
+            ) : (
+              <button
+                onClick={handleLogout}
+                className={`px-3 py-1.5 rounded-button text-xs font-medium border transition-colors ${
+                  theme === 'dark'
+                    ? 'border-white/15 text-gray-300 hover:bg-white/10'
+                    : 'border-gray-200 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Log out
+              </button>
             )}
           </div>
         </div>

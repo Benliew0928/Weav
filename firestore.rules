@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection
+    match /users/{userId} {
+      // Anyone authenticated can read user profiles
+      allow read: if request.auth != null;
+      // Users can only write their own profile
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Threads collection
+    match /threads/{threadId} {
+      // Anyone authenticated can read threads
+      allow read: if request.auth != null;
+      // Anyone authenticated can create threads
+      allow create: if request.auth != null;
+      // Only thread author can update/delete
+      allow update, delete: if request.auth != null && 
+        request.auth.uid == resource.data.authorId;
+      
+      // Messages subcollection - THIS IS THE FIX!
+      match /messages/{messageId} {
+        // Anyone authenticated can read messages in a thread
+        allow read: if request.auth != null;
+        // Anyone authenticated can create messages
+        allow create: if request.auth != null;
+        // Only message author can update/delete their own messages
+        // Only message author can update/delete their own messages
+        // EXCEPT for 'readBy' and 'reactions' fields which any auth user can update
+        allow update: if request.auth != null && (
+          request.auth.uid == resource.data.authorId ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'reactions'])
+        );
+        allow delete: if request.auth != null && 
+          request.auth.uid == resource.data.authorId;
+      }
+      
+      // Presence subcollection (for typing indicators - Phase 2)
+      match /presence/{userId} {
+        // Anyone authenticated can read presence
+        allow read: if request.auth != null;
+        // Users can only write their own presence
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}

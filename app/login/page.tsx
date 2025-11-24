@@ -1,28 +1,106 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { GradientBackground } from '@/components/GradientBackground'
 import { useWeavStore } from '@/store/useWeavStore'
+import { signInWithGoogle, signInAnonymously as firebaseSignInAnonymously, onAuthStateChanged, checkRedirectResult } from '@/lib/firebase/auth'
+import { createUserProfile, getUserProfile } from '@/lib/firebase/users'
+import { firestoreToUser } from '@/lib/firebase/converters'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { setAuthenticated, theme } = useWeavStore()
+  const { setAuthenticated, setCurrentUserId, setCurrentUser, theme } = useWeavStore()
   const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleGoogleLogin = () => {
-    // Simulate login
-    setAuthenticated(true)
-    router.push('/')
+  // Check for redirect result on mount (for mobile Google sign-in)
+  useEffect(() => {
+    const handleRedirect = async () => {
+      const redirectUser = await checkRedirectResult()
+      if (redirectUser) {
+        // Redirect result found, process it
+        setCurrentUserId(redirectUser.uid)
+        setAuthenticated(true)
+        
+        let userProfile = await getUserProfile(redirectUser.uid)
+        if (!userProfile) {
+          await createUserProfile(redirectUser)
+          userProfile = await getUserProfile(redirectUser.uid)
+        }
+        
+        if (userProfile) {
+          setCurrentUser(userProfile)
+        }
+        
+        router.push('/')
+      }
+    }
+    
+    handleRedirect()
+  }, [router, setAuthenticated, setCurrentUserId, setCurrentUser])
+
+  // Listen for auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        setCurrentUserId(firebaseUser.uid)
+        setAuthenticated(true)
+        
+        // Get or create user profile
+        let userProfile = await getUserProfile(firebaseUser.uid)
+        if (!userProfile) {
+          await createUserProfile(firebaseUser)
+          userProfile = await getUserProfile(firebaseUser.uid)
+        }
+        
+        if (userProfile) {
+          setCurrentUser(userProfile)
+        }
+        
+        router.push('/')
+      } else {
+        setCurrentUserId(null)
+        setAuthenticated(false)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [router, setAuthenticated, setCurrentUserId, setCurrentUser])
+
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const firebaseUser = await signInWithGoogle()
+      // Auth state change will handle the rest
+    } catch (err: any) {
+      console.error('Google login error:', err)
+      setError(err.message || 'Failed to sign in with Google')
+      setLoading(false)
+    }
+  }
+
+  const handleAnonymousLogin = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const firebaseUser = await firebaseSignInAnonymously()
+      // Auth state change will handle the rest
+    } catch (err: any) {
+      console.error('Anonymous login error:', err)
+      setError(err.message || 'Failed to sign in anonymously')
+      setLoading(false)
+    }
   }
 
   const handleEmailLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    if (email.trim()) {
-      setAuthenticated(true)
-      router.push('/')
-    }
+    // For now, email login will use anonymous sign-in
+    // You can implement email/password auth later if needed
+    handleAnonymousLogin()
   }
 
   return (
@@ -63,14 +141,23 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className={`glass rounded-card p-8 border space-y-4 transition-colors ${
+          <div className={`glass rounded-card p-8 border space-y-4 transition-colors ${
           theme === 'dark' ? 'border-white/10' : 'border-gray-200/50'
         }`}>
+          {error && (
+            <div className={`p-3 rounded-button text-sm ${
+              theme === 'dark' ? 'bg-red-500/20 text-red-400' : 'bg-red-50 text-red-600'
+            }`}>
+              {error}
+            </div>
+          )}
+          
           <motion.button
             onClick={handleGoogleLogin}
-            className="w-full px-6 py-3 rounded-button bg-white text-black font-medium hover:opacity-90 transition-opacity flex items-center justify-center space-x-2"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            disabled={loading}
+            className="w-full px-6 py-3 rounded-button bg-white text-black font-medium hover:opacity-90 transition-opacity flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={{ scale: loading ? 1 : 1.02 }}
+            whileTap={{ scale: loading ? 1 : 0.98 }}
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -90,7 +177,7 @@ export default function LoginPage() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            <span>Continue with Google</span>
+            <span>{loading ? 'Signing in...' : 'Continue with Google'}</span>
           </motion.button>
 
           <div className="relative my-6">
@@ -108,28 +195,15 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <form onSubmit={handleEmailLogin} className="space-y-4">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className={`w-full px-4 py-3 rounded-button border focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors ${
-                theme === 'dark'
-                  ? 'bg-white/5 border-white/10 text-white placeholder-gray-500'
-                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-              }`}
-              required
-            />
-            <motion.button
-              type="submit"
-              className="w-full px-6 py-3 rounded-button gradient-primary text-white font-medium shadow-lg hover:opacity-90 transition-opacity"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              Continue with Email
-            </motion.button>
-          </form>
+          <motion.button
+            onClick={handleAnonymousLogin}
+            disabled={loading}
+            className="w-full px-6 py-3 rounded-button gradient-primary text-white font-medium shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={{ scale: loading ? 1 : 1.02 }}
+            whileTap={{ scale: loading ? 1 : 0.98 }}
+          >
+            {loading ? 'Signing in...' : 'Continue as Guest'}
+          </motion.button>
         </div>
 
         <div className={`mt-8 text-center text-sm ${

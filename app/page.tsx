@@ -13,6 +13,8 @@ import { ResetZoomButton } from '@/components/ResetZoomButton'
 import { SphereControls } from '@/components/SphereControls'
 import { useWeavStore } from '@/store/useWeavStore'
 import { isWebGLSupported } from '@/lib/perf'
+import { subscribeToThreads } from '@/lib/firebase/threads'
+import { onAuthStateChanged } from '@/lib/firebase/auth'
 
 export default function HomePage() {
   const {
@@ -28,9 +30,29 @@ export default function HomePage() {
     transitionPhase,
     theme,
     viewMode,
+    syncThreadsFromFirebase,
+    isAuthenticated,
   } = useWeavStore()
 
   const [mounted, setMounted] = useState(false)
+
+  // Set up real-time thread listener
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const unsubscribe = subscribeToThreads(
+      (updatedThreads) => {
+        syncThreadsFromFirebase(updatedThreads)
+      },
+      (error) => {
+        console.error('Error syncing threads:', error)
+      }
+    )
+
+    return () => {
+      unsubscribe()
+    }
+  }, [isAuthenticated, syncThreadsFromFirebase])
 
   useEffect(() => {
     setMounted(true)
