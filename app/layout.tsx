@@ -12,6 +12,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Weav — Where ideas intertwine',
   description: 'A 3D conversation platform where users explore threads visually',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({
