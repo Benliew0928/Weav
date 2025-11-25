@@ -21,7 +21,7 @@ class SoundManager {
         // Preload common SFX
         this.loadSFX('hover', '/sounds/hover.mp3')
         this.loadSFX('click', '/sounds/click.mp3')
-        this.loadSFX('transition', '/sounds/transition.mp3')
+        this.loadSFX('transition', '/sounds/transition.wav')
     }
 
     loadSFX(key: string, src: string) {
@@ -33,18 +33,23 @@ class SoundManager {
         this.sfx.set(key, sound)
     }
 
-    playBGM(src: string, volume: number = 0.3) {
+    playBGM(src: string | string[], volume: number = 0.3) {
         if (this.bgm) {
             this.bgm.stop()
             this.bgm.unload()
         }
 
+        console.log('Initializing BGM with src:', src)
         this.bgm = new Howl({
-            src: [src],
+            src: Array.isArray(src) ? src : [src],
             html5: true, // Force HTML5 Audio for large files (BGM)
             loop: true,
             volume: this.isMuted || !this.isBGMEnabled ? 0 : volume,
             autoplay: true,
+            onload: () => console.log('BGM loaded successfully'),
+            onloaderror: (id, err) => console.error('BGM load error:', id, err),
+            onplay: () => console.log('BGM started playing'),
+            onplayerror: (id, err) => console.error('BGM play error:', id, err),
         })
     }
 
@@ -84,10 +89,19 @@ class SoundManager {
     setBGMEnabled(enabled: boolean) {
         this.isBGMEnabled = enabled
         if (this.bgm) {
-            if (enabled && !this.isMuted) {
-                this.bgm.fade(0, this.volume, 1000)
+            if (enabled) {
+                if (!this.isMuted) {
+                    this.bgm.mute(false)
+                    this.bgm.fade(0, this.volume, 1000)
+                }
             } else {
+                // Fade out then mute
                 this.bgm.fade(this.bgm.volume(), 0, 1000)
+                setTimeout(() => {
+                    if (!this.isBGMEnabled && this.bgm) {
+                        this.bgm.mute(true)
+                    }
+                }, 1000)
             }
         }
     }

@@ -20,8 +20,7 @@ export function AudioController() {
         if (!initialized.current) {
             soundManager.init()
             // Placeholder BGM - a soft ambient track
-            // Using a reliable public domain source or placeholder
-            soundManager.playBGM('https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112762.mp3', 0.2)
+            soundManager.playBGM('/sounds/bgm.mp3', 0.2)
             initialized.current = true
         }
     }, [])
