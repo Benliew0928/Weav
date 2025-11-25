@@ -6,6 +6,8 @@ import { Footer } from '@/components/Footer'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { LayoutWrapper } from '@/components/LayoutWrapper'
 import { AuthListener } from '@/components/AuthListener'
+import { AudioController } from '@/components/AudioController'
+import { ThreadListener } from '@/components/ThreadListener'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -28,6 +30,8 @@ export default function RootLayout({
         <ThemeProvider>
           <LayoutWrapper>
             <AuthListener />
+            <ThreadListener />
+            <AudioController />
             <Header />
             <main className="flex-1 overflow-hidden w-full m-0 p-0" style={{ backgroundColor: 'transparent', margin: 0, padding: 0, marginTop: '4rem', marginBottom: 0, paddingBottom: 0, minHeight: 0, height: 'calc(100vh - 4rem - 4rem)' }}>{children}</main>
             <Footer />
@@ -37,4 +41,3 @@ export default function RootLayout({
     </html>
   )
 }
-

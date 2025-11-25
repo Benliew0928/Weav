@@ -58,7 +58,8 @@ export const sendMessage = async (
     metadata?: { duration?: number; fileName?: string }
 ): Promise<string> => {
     if (!db) throw new Error('Firebase Firestore not initialized')
-    if (!threadId || !authorId || !content.trim()) throw new Error('Invalid message parameters')
+    if (!threadId || !authorId) throw new Error('Invalid message parameters')
+    if (type === 'text' && !content.trim()) throw new Error('Message text cannot be empty')
 
     try {
         const messagesRef = collection(db, 'threads', threadId, 'messages')

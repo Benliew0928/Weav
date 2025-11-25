@@ -27,9 +27,16 @@ interface WeavState {
   use2DFallback: boolean
   showDebugOverlay: boolean
   theme: 'dark' | 'light'
+  isMuted: boolean
+  volume: number
+  isBGMEnabled: boolean
+  isSFXEnabled: boolean
+  isHoverSFXEnabled: boolean
+  isClickSFXEnabled: boolean
+  isTransitionSFXEnabled: boolean
   viewMode: 'sphere' | 'list'
   isTransitioning: boolean
-  
+
   // Focus lock state for card-to-details transition
   isFocusLocked: boolean
   selectedNodePosition: { x: number; y: number; z: number } | null
@@ -53,6 +60,13 @@ interface WeavState {
   setShowDebugOverlay: (show: boolean) => void
   setTheme: (theme: 'dark' | 'light') => void
   toggleTheme: () => void
+  setMuted: (muted: boolean) => void
+  setVolume: (volume: number) => void
+  setBGMEnabled: (enabled: boolean) => void
+  setSFXEnabled: (enabled: boolean) => void
+  setHoverSFXEnabled: (enabled: boolean) => void
+  setClickSFXEnabled: (enabled: boolean) => void
+  setTransitionSFXEnabled: (enabled: boolean) => void
   setViewMode: (mode: 'sphere' | 'list') => void
   setIsTransitioning: (transitioning: boolean) => void
   setFocusLocked: (locked: boolean) => void
@@ -67,167 +81,181 @@ interface WeavState {
 export const useWeavStore = create<WeavState>()(
   persist(
     (set) => ({
-  // Initial state
-  currentUser,
-  currentUserId: null,
-  isAuthenticated: false,
-  // Start with no threads – real threads come from Firestore
-  threads: [],
-  selectedThreadId: null,
-  ringRotation: 0,
-  verticalRotation: 0,
-  angularVelocity: 0,
-  cameraZ: 10,
-  defaultCameraZ: 10,
-  isCreateThreadOpen: false,
-  isThreadDetailOpen: false,
-  isWeavRingVisible: true,
-  use2DFallback: false,
-  showDebugOverlay: false,
-  theme: 'dark',
-  viewMode: 'sphere',
-  isTransitioning: false,
-  isFocusLocked: false,
-  selectedNodePosition: null,
-  transitionPhase: 'idle',
+      // Initial state
+      currentUser,
+      currentUserId: null,
+      isAuthenticated: false,
+      // Start with no threads – real threads come from Firestore
+      threads: [],
+      selectedThreadId: null,
+      ringRotation: 0,
+      verticalRotation: 0,
+      angularVelocity: 0,
+      cameraZ: 10,
+      defaultCameraZ: 10,
+      isCreateThreadOpen: false,
+      isThreadDetailOpen: false,
+      isWeavRingVisible: true,
+      use2DFallback: false,
+      showDebugOverlay: false,
+      theme: 'dark',
+      isMuted: false,
+      volume: 0.5,
+      isBGMEnabled: true,
+      isSFXEnabled: true,
+      isHoverSFXEnabled: true,
+      isClickSFXEnabled: true,
+      isTransitionSFXEnabled: true,
+      viewMode: 'sphere',
+      isTransitioning: false,
+      isFocusLocked: false,
+      selectedNodePosition: null,
+      transitionPhase: 'idle',
 
-  // Actions
-  setAuthenticated: (auth) => set({ isAuthenticated: auth }),
-  setCurrentUserId: (userId) => set({ currentUserId: userId }),
-  setCurrentUser: (user) => set({ currentUser: user }),
-  syncThreadsFromFirebase: (threads) => set({ threads }),
-  rotateRing: (delta) =>
-    set((state) => ({ ringRotation: state.ringRotation + delta })),
-  setVerticalRotation: (rotation) =>
-    set({ verticalRotation: Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotation)) }),
-  setAngularVelocity: (velocity) => set({ angularVelocity: velocity }),
-  setZoom: (z) => set({ cameraZ: z }),
-  setDefaultCameraZ: (z) => set({ defaultCameraZ: z, cameraZ: z }),
-  selectNode: (threadId) => {
-    if (threadId) {
-      const currentState = useWeavStore.getState()
-      
-      // Always ensure we start from a clean state
-      // If there's any existing selection or transition in progress, reset first
-      if (currentState.selectedThreadId || currentState.transitionPhase !== 'idle' || currentState.isFocusLocked) {
-        // Reset everything first (but keep transitionPhase as 'collapsing' briefly to prevent thread clearing)
-        set({
-          selectedThreadId: null,
-          isThreadDetailOpen: false,
-          transitionPhase: 'collapsing', // Use collapsing instead of idle to prevent thread clearing
-          isFocusLocked: false,
-          selectedNodePosition: null,
-        })
-        
-        // Wait for reset to complete before starting new transition
-        setTimeout(() => {
-          // Set to idle first, then immediately to focusing
-          set({ 
-            transitionPhase: 'idle',
-          })
-          // Use requestAnimationFrame to ensure state update happens in next frame
-          requestAnimationFrame(() => {
-            set({ 
-              selectedThreadId: threadId, 
+      // Actions
+      setAuthenticated: (auth) => set({ isAuthenticated: auth }),
+      setCurrentUserId: (userId) => set({ currentUserId: userId }),
+      setCurrentUser: (user) => set({ currentUser: user }),
+      syncThreadsFromFirebase: (threads) => set({ threads }),
+      rotateRing: (delta) =>
+        set((state) => ({ ringRotation: state.ringRotation + delta })),
+      setVerticalRotation: (rotation) =>
+        set({ verticalRotation: Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotation)) }),
+      setAngularVelocity: (velocity) => set({ angularVelocity: velocity }),
+      setZoom: (z) => set({ cameraZ: z }),
+      setDefaultCameraZ: (z) => set({ defaultCameraZ: z, cameraZ: z }),
+      selectNode: (threadId) => {
+        if (threadId) {
+          const currentState = useWeavStore.getState()
+
+          // Always ensure we start from a clean state
+          // If there's any existing selection or transition in progress, reset first
+          if (currentState.selectedThreadId || currentState.transitionPhase !== 'idle' || currentState.isFocusLocked) {
+            // Reset everything first (but keep transitionPhase as 'collapsing' briefly to prevent thread clearing)
+            set({
+              selectedThreadId: null,
+              isThreadDetailOpen: false,
+              transitionPhase: 'collapsing', // Use collapsing instead of idle to prevent thread clearing
+              isFocusLocked: false,
+              selectedNodePosition: null,
+            })
+
+            // Wait for reset to complete before starting new transition
+            setTimeout(() => {
+              // Set to idle first, then immediately to focusing
+              set({
+                transitionPhase: 'idle',
+              })
+              // Use requestAnimationFrame to ensure state update happens in next frame
+              requestAnimationFrame(() => {
+                set({
+                  selectedThreadId: threadId,
+                  isThreadDetailOpen: false,
+                  transitionPhase: 'focusing',
+                  isFocusLocked: true,
+                })
+              })
+            }, 100)
+          } else {
+            // Clean state, start immediately
+            set({
+              selectedThreadId: threadId,
               isThreadDetailOpen: false,
               transitionPhase: 'focusing',
               isFocusLocked: true,
             })
+          }
+        } else {
+          // Full reset when deselecting
+          set({
+            selectedThreadId: null,
+            isThreadDetailOpen: false,
+            transitionPhase: 'idle',
+            isFocusLocked: false,
+            selectedNodePosition: null,
           })
-        }, 100)
-      } else {
-        // Clean state, start immediately
-        set({ 
-          selectedThreadId: threadId, 
-          isThreadDetailOpen: false,
-          transitionPhase: 'focusing',
-          isFocusLocked: true,
+        }
+      },
+      setCreateThreadOpen: (open) => set({ isCreateThreadOpen: open }),
+      setThreadDetailOpen: (open) => set({ isThreadDetailOpen: open }),
+      setWeavRingVisible: (visible) => set({ isWeavRingVisible: visible }),
+      setUse2DFallback: (use) => set({ use2DFallback: use }),
+      setShowDebugOverlay: (show) => set({ showDebugOverlay: show }),
+      setTheme: (theme) => {
+        set({ theme })
+        // Update HTML class for Tailwind dark mode
+        if (typeof window !== 'undefined') {
+          document.documentElement.classList.toggle('dark', theme === 'dark')
+          document.documentElement.classList.toggle('light', theme === 'light')
+        }
+      },
+      toggleTheme: () => {
+        set((state) => {
+          const newTheme = state.theme === 'dark' ? 'light' : 'dark'
+          // Update HTML class for Tailwind dark mode
+          if (typeof window !== 'undefined') {
+            document.documentElement.classList.toggle('dark', newTheme === 'dark')
+            document.documentElement.classList.toggle('light', newTheme === 'light')
+          }
+          return { theme: newTheme }
         })
-      }
-    } else {
-      // Full reset when deselecting
-      set({ 
-        selectedThreadId: null, 
-        isThreadDetailOpen: false,
-        transitionPhase: 'idle',
-        isFocusLocked: false,
-        selectedNodePosition: null,
-      })
-    }
-  },
-  setCreateThreadOpen: (open) => set({ isCreateThreadOpen: open }),
-  setThreadDetailOpen: (open) => set({ isThreadDetailOpen: open }),
-  setWeavRingVisible: (visible) => set({ isWeavRingVisible: visible }),
-  setUse2DFallback: (use) => set({ use2DFallback: use }),
-  setShowDebugOverlay: (show) => set({ showDebugOverlay: show }),
-  setTheme: (theme) => {
-    set({ theme })
-    // Update HTML class for Tailwind dark mode
-    if (typeof window !== 'undefined') {
-      document.documentElement.classList.toggle('dark', theme === 'dark')
-      document.documentElement.classList.toggle('light', theme === 'light')
-    }
-  },
-  toggleTheme: () => {
-    set((state) => {
-      const newTheme = state.theme === 'dark' ? 'light' : 'dark'
-      // Update HTML class for Tailwind dark mode
-      if (typeof window !== 'undefined') {
-        document.documentElement.classList.toggle('dark', newTheme === 'dark')
-        document.documentElement.classList.toggle('light', newTheme === 'light')
-      }
-      return { theme: newTheme }
-    })
-  },
-  setViewMode: (mode) => {
-    const currentMode = useWeavStore.getState().viewMode
-    if (currentMode !== mode) {
-      set({ isTransitioning: true, viewMode: mode })
-    } else {
-      set({ viewMode: mode })
-    }
-  },
-  setIsTransitioning: (transitioning) => set({ isTransitioning: transitioning }),
-  setFocusLocked: (locked) => set({ isFocusLocked: locked }),
-  setSelectedNodePosition: (position) => set({ selectedNodePosition: position }),
-  setTransitionPhase: (phase) => set({ transitionPhase: phase }),
-  addThread: (thread) =>
-    set((state) => ({
-      threads: [thread, ...state.threads],
-    })),
-  addComment: (threadId, comment) =>
-    set((state) => ({
-      threads: state.threads.map((thread) =>
-        thread.id === threadId
-          ? { ...thread, comments: [...thread.comments, comment] }
-          : thread
-      ),
-    })),
-  updateCurrentUser: (updates) =>
-    set((state) => {
-      const updatedUser: User = {
-        ...state.currentUser,
-        ...updates,
-      }
+      },
+      setMuted: (muted) => set({ isMuted: muted }),
+      setVolume: (volume) => set({ volume }),
+      setBGMEnabled: (enabled) => set({ isBGMEnabled: enabled }),
+      setSFXEnabled: (enabled) => set({ isSFXEnabled: enabled }),
+      setHoverSFXEnabled: (enabled) => set({ isHoverSFXEnabled: enabled }),
+      setClickSFXEnabled: (enabled) => set({ isClickSFXEnabled: enabled }),
+      setTransitionSFXEnabled: (enabled) => set({ isTransitionSFXEnabled: enabled }),
+      setViewMode: (mode) => {
+        const currentMode = useWeavStore.getState().viewMode
+        if (currentMode !== mode) {
+          set({ isTransitioning: true, viewMode: mode })
+        } else {
+          set({ viewMode: mode })
+        }
+      },
+      setIsTransitioning: (transitioning) => set({ isTransitioning: transitioning }),
+      setFocusLocked: (locked) => set({ isFocusLocked: locked }),
+      setSelectedNodePosition: (position) => set({ selectedNodePosition: position }),
+      setTransitionPhase: (phase) => set({ transitionPhase: phase }),
+      addThread: (thread) =>
+        set((state) => ({
+          threads: [thread, ...state.threads],
+        })),
+      addComment: (threadId, comment) =>
+        set((state) => ({
+          threads: state.threads.map((thread) =>
+            thread.id === threadId
+              ? { ...thread, comments: [...thread.comments, comment] }
+              : thread
+          ),
+        })),
+      updateCurrentUser: (updates) =>
+        set((state) => {
+          const updatedUser: User = {
+            ...state.currentUser,
+            ...updates,
+          }
 
-      return {
-        currentUser: updatedUser,
-        threads: state.threads.map((thread) =>
-          thread.author.id === state.currentUser.id
-            ? { ...thread, author: updatedUser }
-            : thread
-        ),
-      }
-    }),
-  logout: () =>
-    set(() => ({
-      isAuthenticated: false,
-      currentUserId: null,
-      // Keep currentUser for now; it will be overwritten on next login
-      threads: [],
-      selectedThreadId: null,
-      isThreadDetailOpen: false,
-    })),
+          return {
+            currentUser: updatedUser,
+            threads: state.threads.map((thread) =>
+              thread.author.id === state.currentUser.id
+                ? { ...thread, author: updatedUser }
+                : thread
+            ),
+          }
+        }),
+      logout: () =>
+        set(() => ({
+          isAuthenticated: false,
+          currentUserId: null,
+          // Keep currentUser for now; it will be overwritten on next login
+          threads: [],
+          selectedThreadId: null,
+          isThreadDetailOpen: false,
+        })),
     }),
     {
       name: 'weav-storage',
@@ -236,6 +264,13 @@ export const useWeavStore = create<WeavState>()(
         theme: state.theme,
         currentUser: state.currentUser,
         currentUserId: state.currentUserId,
+        isMuted: state.isMuted,
+        volume: state.volume,
+        isBGMEnabled: state.isBGMEnabled,
+        isSFXEnabled: state.isSFXEnabled,
+        isHoverSFXEnabled: state.isHoverSFXEnabled,
+        isClickSFXEnabled: state.isClickSFXEnabled,
+        isTransitionSFXEnabled: state.isTransitionSFXEnabled,
       }),
       skipHydration: false,
     }

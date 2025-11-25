@@ -4,13 +4,14 @@ import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { X, Send, MessageCircle, ArrowLeft } from 'lucide-react'
 import { useWeavStore } from '@/store/useWeavStore'
-import { Thread, Comment, currentUser } from '@/data/sampleThreads'
+import { Thread, Comment } from '@/data/sampleThreads'
 import { CommentBubble } from './CommentBubble'
 import { Avatar } from './Avatar'
 import { ReactionBar } from './ReactionBar'
 import { ChatRoomView } from './ChatRoomView'
 import { formatTimeAgo } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/perf'
+import { addCommentToThread } from '@/lib/firebase/threads'
 
 export function ThreadDetailPanel() {
   const {
@@ -29,6 +30,7 @@ export function ThreadDetailPanel() {
     selectNode,
     setSelectedNodePosition,
     theme,
+    currentUser,
   } = useWeavStore()
 
   const [thread, setThread] = useState<Thread | null>(null)
@@ -36,7 +38,7 @@ export function ThreadDetailPanel() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [showChatRoom, setShowChatRoom] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
-  
+
   // Parallax motion values
   const parallaxX = useMotionValue(0)
   const parallaxY = useMotionValue(0)
@@ -108,16 +110,16 @@ export function ThreadDetailPanel() {
 
   const handleClose = () => {
     triggerHaptic([10])
-    
+
     // Start reverse animation
     setTransitionPhase('collapsing')
     setThreadDetailOpen(false)
-    
+
     // Mark thread as read before clearing
     if (thread) {
       thread.unread = false
     }
-    
+
     // After collapse animation, restore sphere and fully reset state
     setTimeout(() => {
       // Fully reset all state (but keep current zoom level)
@@ -157,7 +159,7 @@ export function ThreadDetailPanel() {
     }, 350) // Wait for exit animation (300ms) + small buffer
   }
 
-  const handleSubmitReply = (e: React.FormEvent) => {
+  const handleSubmitReply = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!replyText.trim() || !thread) return
 
@@ -167,11 +169,22 @@ export function ThreadDetailPanel() {
       content: replyText,
       timestamp: new Date(),
       reactions: [],
+      replies: [],
     }
 
-    addComment(thread.id, newComment)
-    setReplyText('')
-    triggerHaptic([20])
+    try {
+      // Optimistic update (optional, but good for UX)
+      addComment(thread.id, newComment)
+
+      // Write to Firestore
+      await addCommentToThread(thread.id, newComment)
+
+      setReplyText('')
+      triggerHaptic([20])
+    } catch (error) {
+      console.error('Failed to add comment:', error)
+      // TODO: Revert optimistic update if needed
+    }
   }
 
   const isExpanding = transitionPhase === 'expanding' || transitionPhase === 'expanded'
@@ -193,7 +206,7 @@ export function ThreadDetailPanel() {
           />
         )}
       </AnimatePresence>
-      
+
       {/* Panel - only show when chat is NOT open */}
       {!showChatRoom && (
         <AnimatePresence mode="wait">
@@ -202,12 +215,12 @@ export function ThreadDetailPanel() {
               {/* Backdrop with dimming - reduced blur */}
               <motion.div
                 initial={{ opacity: 0 }}
-                animate={{ 
+                animate={{
                   opacity: isExpanding ? 0.4 : 0.5,
                   backdropFilter: 'blur(4px)',
                 }}
                 exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-                transition={{ 
+                transition={{
                   duration: 0.3,
                   ease: [0.4, 0, 0.2, 1],
                 }}
@@ -223,7 +236,7 @@ export function ThreadDetailPanel() {
               <motion.div
                 ref={panelRef}
                 initial={selectedNodePosition && transitionPhase === 'focusing' ? {
-                  x: typeof window !== 'undefined' 
+                  x: typeof window !== 'undefined'
                     ? (window.innerWidth > 768 ? window.innerWidth / 2 - 220 : window.innerWidth / 2 - window.innerWidth / 2)
                     : 0,
                   y: typeof window !== 'undefined' ? window.innerHeight / 2 - 200 : 0,
@@ -235,7 +248,7 @@ export function ThreadDetailPanel() {
                   opacity: 1,
                 }}
                 animate={isCollapsing ? {
-                  x: selectedNodePosition && typeof window !== 'undefined' 
+                  x: selectedNodePosition && typeof window !== 'undefined'
                     ? (window.innerWidth > 768 ? window.innerWidth / 2 - 220 : window.innerWidth / 2 - window.innerWidth / 2)
                     : '100%',
                   y: selectedNodePosition && typeof window !== 'undefined' ? window.innerHeight / 2 - 200 : 0,
@@ -262,11 +275,10 @@ export function ThreadDetailPanel() {
                   duration: isCollapsing ? 0.4 : 0.5,
                   ease: [0.22, 1, 0.36, 1], // Apple-style easing
                 }}
-                className={`fixed top-0 right-0 h-full w-full md:w-[440px] border-l z-50 flex flex-col overflow-y-auto transition-colors duration-300 ${
-                  theme === 'dark' 
-                    ? 'border-white/10 bg-gradient-to-br from-[#0a0a0f] via-[#1a1a2e] to-[#0a0a0f]'
-                    : 'border-gray-200/50 bg-gradient-to-br from-white via-gray-50 to-white'
-                }`}
+                className={`fixed top-0 right-0 h-full w-full md:w-[440px] border-l z-50 flex flex-col overflow-y-auto transition-colors duration-300 ${theme === 'dark'
+                  ? 'border-white/10 bg-gradient-to-br from-[#0a0a0f] via-[#1a1a2e] to-[#0a0a0f]'
+                  : 'border-gray-200/50 bg-gradient-to-br from-white via-gray-50 to-white'
+                  }`}
                 style={{
                   x: transitionPhase === 'expanded' && !showChatRoom ? springX : 0,
                   y: transitionPhase === 'expanded' && !showChatRoom ? springY : 0,
@@ -275,165 +287,158 @@ export function ThreadDetailPanel() {
                   filter: 'none',
                 }}
               >
-            {/* Header */}
-            <div className={`p-6 border-b transition-colors ${
-              theme === 'dark' ? 'border-white/10' : 'border-gray-200/50'
-            }`}>
-              <div className="flex items-center justify-between mb-4">
-                <motion.button
-                  onClick={handleClose}
-                  className={`p-2 rounded-button transition-colors ${
-                    theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-                  }`}
-                  aria-label="Back to sphere"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <ArrowLeft className={`w-5 h-5 ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`} />
-                </motion.button>
-                
-                {/* Join Chat Button */}
-                <motion.button
-                  onClick={handleJoinChat}
-                  className="px-4 py-2 rounded-button gradient-primary text-white flex items-center gap-2"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span className="text-small font-semibold">Join Chat</span>
-                </motion.button>
-              </div>
-
-              <div className="flex items-start space-x-4">
-                {thread.image ? (
-                  <img
-                    src={thread.image}
-                    alt={thread.title}
-                    className="w-16 h-16 rounded-button object-cover"
-                  />
-                ) : (
-                  <div className="text-5xl">{thread.icon}</div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h1 className={`text-page-title font-semibold mb-2 ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                {/* Header */}
+                <div className={`p-6 border-b transition-colors ${theme === 'dark' ? 'border-white/10' : 'border-gray-200/50'
                   }`}>
-                    {thread.title}
-                  </h1>
-                  <div className="flex items-center space-x-3 mb-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <motion.button
+                      onClick={handleClose}
+                      className={`p-2 rounded-button transition-colors ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+                        }`}
+                      aria-label="Back to sphere"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <ArrowLeft className={`w-5 h-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`} />
+                    </motion.button>
+
+                    {/* Join Chat Button */}
+                    <motion.button
+                      onClick={handleJoinChat}
+                      className="px-4 py-2 rounded-button gradient-primary text-white flex items-center gap-2"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span className="text-small font-semibold">Join Chat</span>
+                    </motion.button>
+                  </div>
+
+                  <div className="flex items-start space-x-4">
+                    {thread.image ? (
+                      <img
+                        src={thread.image}
+                        alt={thread.title}
+                        className="w-16 h-16 rounded-button object-cover"
+                      />
+                    ) : (
+                      <div className="text-5xl">{thread.icon}</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h1 className={`text-page-title font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>
+                        {thread.title}
+                      </h1>
+                      <div className="flex items-center space-x-3 mb-4">
+                        <Avatar
+                          src={thread.author.avatar}
+                          alt={thread.author.username}
+                          size="sm"
+                          userId={thread.author.id}
+                        />
+                        <span className={`text-small ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
+                          {thread.author.username}
+                        </span>
+                        <span className={`text-small ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                          }`}>
+                          · {formatTimeAgo(thread.createdAt)}
+                        </span>
+                      </div>
+                      <p className={`text-body mb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
+                        {thread.description}
+                      </p>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {thread.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className={`px-3 py-1 text-small rounded-chip ${theme === 'dark'
+                              ? 'bg-white/5 text-gray-400'
+                              : 'bg-gray-100 text-gray-700'
+                              }`}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <ReactionBar reactions={thread.reactions} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Comments */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-3">
+                  <h2 className={`text-section-title font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>
+                    Comments ({thread.comments.length})
+                  </h2>
+                  {thread.comments.length === 0 ? (
+                    <p className={`text-body text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                      No comments yet. Be the first to share your thoughts!
+                    </p>
+                  ) : (
+                    thread.comments.map((comment, index) => (
+                      <motion.div
+                        key={comment.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          delay: index * 0.1,
+                          type: 'spring',
+                          stiffness: 240,
+                          damping: 28,
+                        }}
+                      >
+                        <CommentBubble comment={comment} />
+                      </motion.div>
+                    ))
+                  )}
+                </div>
+
+                {/* Reply input */}
+                <div className={`p-6 border-t transition-colors ${theme === 'dark' ? 'border-white/10' : 'border-gray-200/50'
+                  }`}>
+                  <form
+                    onSubmit={handleSubmitReply}
+                    className="flex items-end space-x-3"
+                  >
                     <Avatar
-                      src={thread.author.avatar}
-                      alt={thread.author.username}
+                      src={currentUser.avatar}
+                      alt={currentUser.username}
                       size="sm"
                     />
-                    <span className={`text-small ${
-                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      {thread.author.username}
-                    </span>
-                    <span className={`text-small ${
-                      theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
-                    }`}>
-                      · {formatTimeAgo(thread.createdAt)}
-                    </span>
-                  </div>
-                  <p className={`text-body mb-4 ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    {thread.description}
-                  </p>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {thread.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className={`px-3 py-1 text-small rounded-chip ${
-                          theme === 'dark' 
-                            ? 'bg-white/5 text-gray-400'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <ReactionBar reactions={thread.reactions} />
+                    <div className="flex-1">
+                      <textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="Add a comment..."
+                        rows={1}
+                        className={`w-full px-4 py-3 rounded-button border focus:outline-none focus:ring-2 focus:ring-primary-mid resize-none max-h-[120px] ${theme === 'dark'
+                          ? 'bg-white/5 border-white/10 text-white placeholder-gray-500'
+                          : 'bg-gray-100 border-gray-200 text-gray-900 placeholder-gray-400'
+                          }`}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement
+                          target.style.height = 'auto'
+                          target.style.height = `${Math.min(target.scrollHeight, 120)}px`
+                        }}
+                      />
+                    </div>
+                    <motion.button
+                      type="submit"
+                      className="p-3 rounded-button gradient-primary text-white"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      aria-label="Send comment"
+                      disabled={!replyText.trim()}
+                    >
+                      <Send className="w-5 h-5" />
+                    </motion.button>
+                  </form>
                 </div>
-              </div>
-            </div>
-
-            {/* Comments */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-3">
-              <h2 className={`text-section-title font-semibold mb-4 ${
-                theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>
-                Comments ({thread.comments.length})
-              </h2>
-              {thread.comments.length === 0 ? (
-                <p className={`text-body text-center py-8 ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                }`}>
-                  No comments yet. Be the first to share your thoughts!
-                </p>
-              ) : (
-                thread.comments.map((comment, index) => (
-                  <motion.div
-                    key={comment.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      delay: index * 0.1,
-                      type: 'spring',
-                      stiffness: 240,
-                      damping: 28,
-                    }}
-                  >
-                    <CommentBubble comment={comment} />
-                  </motion.div>
-                ))
-              )}
-            </div>
-
-            {/* Reply input */}
-            <div className={`p-6 border-t transition-colors ${
-              theme === 'dark' ? 'border-white/10' : 'border-gray-200/50'
-            }`}>
-              <form
-                onSubmit={handleSubmitReply}
-                className="flex items-end space-x-3"
-              >
-                <Avatar
-                  src={currentUser.avatar}
-                  alt={currentUser.username}
-                  size="sm"
-                />
-                <div className="flex-1">
-                  <textarea
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    placeholder="Add a comment..."
-                    rows={1}
-                    className="w-full px-4 py-3 rounded-button bg-white/5 border border-white/10 text-body text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-mid resize-none max-h-[120px]"
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement
-                      target.style.height = 'auto'
-                      target.style.height = `${Math.min(target.scrollHeight, 120)}px`
-                    }}
-                  />
-                </div>
-                <motion.button
-                  type="submit"
-                  className="p-3 rounded-button gradient-primary text-white"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  aria-label="Send comment"
-                  disabled={!replyText.trim()}
-                >
-                  <Send className="w-5 h-5" />
-                </motion.button>
-              </form>
-            </div>
               </motion.div>
             </>
           )}

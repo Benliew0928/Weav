@@ -119,8 +119,8 @@ export function ChatHeader({ thread, activeMembers, onlineUsers = [], onBack }: 
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
                 className={`absolute right-0 top-14 w-64 rounded-2xl shadow-2xl overflow-hidden glass border ${theme === 'dark'
-                    ? 'bg-[#1a1a2e]/95 border-white/10'
-                    : 'bg-white/95 border-gray-200/50'
+                  ? 'bg-[#1a1a2e]/95 border-white/10'
+                  : 'bg-white/95 border-gray-200/50'
                   }`}
               >
                 <div className={`p-3 border-b flex justify-between items-center ${theme === 'dark' ? 'border-white/10' : 'border-gray-200/50'
@@ -144,12 +144,12 @@ export function ChatHeader({ thread, activeMembers, onlineUsers = [], onBack }: 
                       <div
                         key={user.userId}
                         className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${theme === 'dark'
-                            ? 'hover:bg-white/5 text-gray-200'
-                            : 'hover:bg-gray-100 text-gray-800'
+                          ? 'hover:bg-white/5 text-gray-200'
+                          : 'hover:bg-gray-100 text-gray-800'
                           }`}
                       >
                         <div className="relative">
-                          <Avatar src={user.avatar} alt={user.username} size="sm" />
+                          <Avatar src={user.avatar} alt={user.username} size="sm" userId={user.userId} />
                           <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-[#1a1a2e]" />
                         </div>
                         <div className="flex-1 min-w-0">

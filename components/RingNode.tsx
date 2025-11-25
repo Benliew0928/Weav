@@ -8,6 +8,7 @@ import * as THREE from 'three'
 import { Thread } from '@/data/sampleThreads'
 import { triggerHaptic } from '@/lib/perf'
 import { useWeavStore } from '@/store/useWeavStore'
+import { soundManager } from '@/lib/audio'
 
 interface RingNodeProps {
   thread: Thread
@@ -96,6 +97,7 @@ export function RingNode({
           // Only set hover if not dragging
           if (!e.nativeEvent.buttons) {
             setHovered(true)
+            soundManager.playSFX('hover', 0.2)
           }
         }}
         onPointerOut={() => setHovered(false)}
@@ -138,6 +140,7 @@ export function RingNode({
             // Only set hover if not dragging (no buttons pressed)
             if (!(e.nativeEvent as PointerEvent).buttons) {
               setHovered(true)
+              soundManager.playSFX('hover', 0.2)
             }
           }}
           onPointerLeave={() => setHovered(false)}

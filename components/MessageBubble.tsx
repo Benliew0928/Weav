@@ -115,7 +115,7 @@ const MessageBubbleComponent = ({
         {!isOwnMessage && (
           <div className="flex-shrink-0 w-8">
             {showAvatar && (
-              <Avatar src={message.author.avatar} alt={message.author.username} size="sm" />
+              <Avatar src={message.author.avatar} alt={message.author.username} size="sm" userId={message.author.id} />
             )}
           </div>
         )}
@@ -123,8 +123,8 @@ const MessageBubbleComponent = ({
 
         <div className={`flex flex-col max-w-[75%] ${isOwnMessage ? 'items-end' : 'items-start'}`}>
           <div className={`px-4 py-2.5 rounded-2xl border italic text-sm ${theme === 'dark'
-              ? 'bg-white/5 border-white/10 text-gray-500'
-              : 'bg-gray-50 border-gray-200 text-gray-400'
+            ? 'bg-white/5 border-white/10 text-gray-500'
+            : 'bg-gray-50 border-gray-200 text-gray-400'
             }`}>
             Message deleted
           </div>
@@ -153,7 +153,7 @@ const MessageBubbleComponent = ({
       {!isOwnMessage && (
         <div className="flex-shrink-0 w-8 flex items-end">
           {showAvatar && (
-            <Avatar src={message.author.avatar} alt={message.author.username} size="sm" />
+            <Avatar src={message.author.avatar} alt={message.author.username} size="sm" userId={message.author.id} />
           )}
         </div>
       )}
@@ -172,10 +172,10 @@ const MessageBubbleComponent = ({
         <div className="relative">
           <motion.div
             className={`px-4 py-2.5 transition-colors duration-300 relative ${isOwnMessage
-                ? 'gradient-primary text-white'
-                : theme === 'dark'
-                  ? 'glass bg-white/5 text-gray-100 border border-white/10'
-                  : 'glass bg-gray-100/80 text-gray-900 border border-gray-200/50'
+              ? 'gradient-primary text-white'
+              : theme === 'dark'
+                ? 'glass bg-white/5 text-gray-100 border border-white/10'
+                : 'glass bg-gray-100/80 text-gray-900 border border-gray-200/50'
               }`}
             style={{
               borderRadius: getBorderRadius(),
@@ -206,10 +206,10 @@ const MessageBubbleComponent = ({
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`flex items-center gap-2 p-3 mb-2 rounded-xl transition-colors ${isOwnMessage
-                    ? 'bg-white/20 hover:bg-white/30 text-white'
-                    : theme === 'dark'
-                      ? 'bg-white/10 hover:bg-white/20 text-gray-200'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                  ? 'bg-white/20 hover:bg-white/30 text-white'
+                  : theme === 'dark'
+                    ? 'bg-white/10 hover:bg-white/20 text-gray-200'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
                   }`}
               >
                 <FileText className="w-5 h-5" />
@@ -281,8 +281,8 @@ const MessageBubbleComponent = ({
                       setShowPicker(!showPicker)
                     }}
                     className={`p-1.5 rounded-full transition-colors ${theme === 'dark'
-                        ? 'hover:bg-white/10 text-gray-400 hover:text-white'
-                        : 'hover:bg-gray-200 text-gray-500 hover:text-gray-900'
+                      ? 'hover:bg-white/10 text-gray-400 hover:text-white'
+                      : 'hover:bg-gray-200 text-gray-500 hover:text-gray-900'
                       }`}
                     title="Add reaction"
                   >
@@ -304,8 +304,8 @@ const MessageBubbleComponent = ({
                     <button
                       onClick={() => setIsEditing(true)}
                       className={`p-1.5 rounded-full transition-colors ${theme === 'dark'
-                          ? 'hover:bg-white/10 text-gray-400 hover:text-white'
-                          : 'hover:bg-gray-200 text-gray-500 hover:text-gray-900'
+                        ? 'hover:bg-white/10 text-gray-400 hover:text-white'
+                        : 'hover:bg-gray-200 text-gray-500 hover:text-gray-900'
                         }`}
                       title="Edit message"
                     >
@@ -318,8 +318,8 @@ const MessageBubbleComponent = ({
                         }
                       }}
                       className={`p-1.5 rounded-full transition-colors ${theme === 'dark'
-                          ? 'hover:bg-red-500/20 text-gray-400 hover:text-red-400'
-                          : 'hover:bg-red-100 text-gray-500 hover:text-red-600'
+                        ? 'hover:bg-red-500/20 text-gray-400 hover:text-red-400'
+                        : 'hover:bg-red-100 text-gray-500 hover:text-red-600'
                         }`}
                       title="Delete message"
                     >
@@ -337,8 +337,8 @@ const MessageBubbleComponent = ({
                       }
                     }}
                     className={`p-1.5 rounded-full transition-colors ${theme === 'dark'
-                        ? 'hover:bg-red-500/20 text-gray-400 hover:text-red-400'
-                        : 'hover:bg-red-100 text-gray-500 hover:text-red-600'
+                      ? 'hover:bg-red-500/20 text-gray-400 hover:text-red-400'
+                      : 'hover:bg-red-100 text-gray-500 hover:text-red-600'
                       }`}
                     title="Delete message"
                   >
@@ -360,10 +360,10 @@ const MessageBubbleComponent = ({
                   key={reaction.emoji}
                   onClick={() => onReaction(message.id, reaction.emoji)}
                   className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border transition-all ${hasReacted
-                      ? 'bg-primary-mid/20 border-primary-mid text-primary-light'
-                      : theme === 'dark'
-                        ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    ? 'bg-primary-mid/20 border-primary-mid text-primary-light'
+                    : theme === 'dark'
+                      ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                     }`}
                 >
                   <span>{reaction.emoji}</span>

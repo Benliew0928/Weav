@@ -63,6 +63,8 @@ export const commentToFirestore = (comment: Comment): any => {
   return {
     id: comment.id,
     authorId: comment.author.id,
+    authorUsername: comment.author.username,
+    authorAvatar: comment.author.avatar,
     content: comment.content,
     timestamp: dateToTimestamp(comment.timestamp),
     reactions: comment.reactions.map(reactionToFirestore),
@@ -70,15 +72,21 @@ export const commentToFirestore = (comment: Comment): any => {
   }
 }
 
-// Convert Firestore data to Comment (requires author User object)
-export const firestoreToComment = (data: any, author: User): Comment => {
+// Convert Firestore data to Comment
+export const firestoreToComment = (data: any): Comment => {
+  const author: User = {
+    id: data.authorId || 'unknown',
+    username: data.authorUsername || 'unknown',
+    avatar: data.authorAvatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=unknown',
+  }
+
   return {
     id: data.id || '',
     author,
     content: data.content || '',
     timestamp: timestampToDate(data.timestamp),
     reactions: (data.reactions || []).map(firestoreToReaction),
-    replies: data.replies?.map((reply: any) => firestoreToComment(reply, author)) || undefined,
+    replies: data.replies?.map((reply: any) => firestoreToComment(reply)) || undefined,
   }
 }
 
@@ -111,10 +119,9 @@ export const firestoreToThread = (data: any, author: User): Thread => {
     tags: data.tags || [],
     createdAt: timestampToDate(data.createdAt),
     reactions: (data.reactions || []).map(firestoreToReaction),
-    comments: (data.comments || []).map((comment: any) => 
-      firestoreToComment(comment, author) // Note: This assumes all comments have same author, may need to fetch authors separately
+    comments: (data.comments || []).map((comment: any) =>
+      firestoreToComment(comment)
     ),
     unread: data.unread || false,
   }
 }
-

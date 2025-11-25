@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Lottie from 'lottie-react'
 import { motion } from 'framer-motion'
 import { useWeavStore } from '@/store/useWeavStore'
+import { soundManager } from '@/lib/audio'
 
 export function ViewToggle() {
   const { viewMode, setViewMode, theme } = useWeavStore()
@@ -28,12 +29,14 @@ export function ViewToggle() {
 
   const handleSphereClick = () => {
     if (viewMode !== 'sphere') {
+      soundManager.playSFX('click')
       setViewMode('sphere')
     }
   }
 
   const handleBookClick = () => {
     if (viewMode !== 'list') {
+      soundManager.playSFX('click')
       setViewMode('list')
     }
   }
@@ -43,15 +46,14 @@ export function ViewToggle() {
       {/* Sphere Icon Button */}
       <motion.button
         onClick={handleSphereClick}
-        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-          viewMode === 'sphere'
-            ? theme === 'dark'
-              ? 'bg-primary-mid/20 border-2 border-primary-mid'
-              : 'bg-primary-mid/10 border-2 border-primary-mid'
-            : theme === 'dark'
+        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${viewMode === 'sphere'
+          ? theme === 'dark'
+            ? 'bg-primary-mid/20 border-2 border-primary-mid'
+            : 'bg-primary-mid/10 border-2 border-primary-mid'
+          : theme === 'dark'
             ? 'bg-white/5 border border-white/10 hover:bg-white/10'
             : 'bg-gray-100 border border-gray-200 hover:bg-gray-200'
-        }`}
+          }`}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         aria-label="Sphere View"
@@ -71,15 +73,14 @@ export function ViewToggle() {
       {/* Book Icon Button */}
       <motion.button
         onClick={handleBookClick}
-        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-          viewMode === 'list'
-            ? theme === 'dark'
-              ? 'bg-primary-mid/20 border-2 border-primary-mid'
-              : 'bg-primary-mid/10 border-2 border-primary-mid'
-            : theme === 'dark'
+        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${viewMode === 'list'
+          ? theme === 'dark'
+            ? 'bg-primary-mid/20 border-2 border-primary-mid'
+            : 'bg-primary-mid/10 border-2 border-primary-mid'
+          : theme === 'dark'
             ? 'bg-white/5 border border-white/10 hover:bg-white/10'
             : 'bg-gray-100 border border-gray-200 hover:bg-gray-200'
-        }`}
+          }`}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         aria-label="List View"

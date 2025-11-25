@@ -9,6 +9,7 @@ import { generateFibonacciSphere, calculateDynamicSphereRadius } from '@/lib/sph
 import { useWeavStore } from '@/store/useWeavStore'
 import { clamp } from '@/lib/utils'
 import { StarfieldBackground } from './StarfieldBackground'
+import { soundManager } from '@/lib/audio'
 
 interface SphereSceneProps {
   threads: Thread[]
@@ -18,10 +19,6 @@ interface SphereSceneProps {
 export function SphereScene({ threads, onNodeSelect }: SphereSceneProps) {
   const { camera, size, gl, scene } = useThree()
   const {
-    ringRotation,
-    verticalRotation,
-    angularVelocity,
-    cameraZ,
     defaultCameraZ,
     setZoom,
     setDefaultCameraZ,
@@ -45,14 +42,20 @@ export function SphereScene({ threads, onNodeSelect }: SphereSceneProps) {
   const rafIdRef = useRef<number | null>(null) // For requestAnimationFrame
   const touchStartDistance = useRef<number | null>(null) // For pinch zoom
   const lastTouchTime = useRef(0) // Throttle touch events
+  const prevTransitionPhase = useRef(transitionPhase)
+
+  // Play transition sound
+  useEffect(() => {
+    if (transitionPhase === 'focusing' && prevTransitionPhase.current !== 'focusing') {
+      soundManager.playSFX('transition', 0.4)
+    }
+    prevTransitionPhase.current = transitionPhase
+  }, [transitionPhase])
 
   // Store state in refs for event handlers to avoid stale closures
   const stateRef = useRef({
     lastPointer: null as { x: number; y: number } | null,
     isDragging: false,
-    verticalRotation: 0,
-    cameraZ: 10,
-    defaultCameraZ: 10,
     rotateRing: (delta: number) => { },
     setVerticalRotation: (rotation: number) => { },
     setAngularVelocity: (velocity: number) => { },
@@ -95,15 +98,12 @@ export function SphereScene({ threads, onNodeSelect }: SphereSceneProps) {
     stateRef.current = {
       lastPointer,
       isDragging: isDraggingRef.current,
-      verticalRotation,
-      cameraZ,
-      defaultCameraZ,
       rotateRing,
       setVerticalRotation,
       setAngularVelocity,
       setZoom,
     }
-  }, [lastPointer, verticalRotation, cameraZ, defaultCameraZ, rotateRing, setVerticalRotation, setAngularVelocity, setZoom])
+  }, [lastPointer, rotateRing, setVerticalRotation, setAngularVelocity, setZoom])
 
   // Handle pointer events
   const handlePointerDown = (event: any) => {
@@ -178,7 +178,10 @@ export function SphereScene({ threads, onNodeSelect }: SphereSceneProps) {
         // Inverted drag: drag left = rotate right, drag right = rotate left
         // drag up = rotate down, drag down = rotate up
         state.rotateRing(-moveDeltaX * sensitivity) // Inverted horizontal
-        const currentVertical = state.verticalRotation - moveDeltaY * verticalSensitivity // Inverted vertical
+
+        // Get current vertical rotation directly from store
+        const currentVerticalRot = useWeavStore.getState().verticalRotation
+        const currentVertical = currentVerticalRot - moveDeltaY * verticalSensitivity // Inverted vertical
         state.setVerticalRotation(clamp(currentVertical, -Math.PI / 2, Math.PI / 2))
 
         setLastPointer({ x: event.clientX, y: event.clientY })
@@ -254,7 +257,8 @@ export function SphereScene({ threads, onNodeSelect }: SphereSceneProps) {
     setIsZooming(true)
 
     const state = stateRef.current
-    const currentZ = state.cameraZ || state.defaultCameraZ || 15
+    const storeState = useWeavStore.getState()
+    const currentZ = storeState.cameraZ || storeState.defaultCameraZ || 15
 
     // Calculate zoom delta based on deltaMode for consistent behavior across devices
     let zoomDelta = 0
@@ -273,8 +277,8 @@ export function SphereScene({ threads, onNodeSelect }: SphereSceneProps) {
     // Allow deep zoom into the heart of the sphere for immersive experience
     // Smaller Z = closer to origin = zoomed in (into sphere)
     // Larger Z = farther from origin = zoomed out (away from sphere)
-    const minZoom = Math.max(1, state.defaultCameraZ * 0.1) // Minimum Z (10% of default) - allows deep zoom INTO sphere center
-    const maxZoom = state.defaultCameraZ * 3.0 // Maximum Z (300% of default) - allows zooming out far
+    const minZoom = Math.max(1, storeState.defaultCameraZ * 0.1) // Minimum Z (10% of default) - allows deep zoom INTO sphere center
+    const maxZoom = storeState.defaultCameraZ * 3.0 // Maximum Z (300% of default) - allows zooming out far
     const newZ = clamp(currentZ + zoomDelta, minZoom, maxZoom)
 
     // Only update if there's a meaningful change (prevents unnecessary updates)
@@ -330,12 +334,13 @@ export function SphereScene({ threads, onNodeSelect }: SphereSceneProps) {
       )
 
       const state = stateRef.current
-      const currentZ = state.cameraZ || state.defaultCameraZ || 15
+      const storeState = useWeavStore.getState()
+      const currentZ = storeState.cameraZ || storeState.defaultCameraZ || 15
       const scale = currentDistance / touchStartDistance.current
       const zoomDelta = (currentZ * (1 - scale)) * 0.5 // Smooth pinch zoom
 
-      const minZoom = Math.max(1, state.defaultCameraZ * 0.1)
-      const maxZoom = state.defaultCameraZ * 3.0
+      const minZoom = Math.max(1, storeState.defaultCameraZ * 0.1)
+      const maxZoom = storeState.defaultCameraZ * 3.0
       const newZ = clamp(currentZ + zoomDelta, minZoom, maxZoom)
 
       if (Math.abs(newZ - currentZ) > 0.01) {
@@ -377,21 +382,27 @@ export function SphereScene({ threads, onNodeSelect }: SphereSceneProps) {
     if (!initialized.current) return
 
     // Apply inertia with smoother decay - slow down when focus locked
-    if (Math.abs(angularVelocity) > 0.0005) {
+    // Apply inertia with smoother decay - slow down when focus locked
+    const currentAngularVelocity = useWeavStore.getState().angularVelocity
+    if (Math.abs(currentAngularVelocity) > 0.0005) {
       const decayFactor = isFocusLocked ? 0.85 : 0.94 // Slower decay for smoother, longer inertia
-      rotateRing(angularVelocity * (isFocusLocked ? 0.3 : 1)) // Slow rotation when locked
-      setAngularVelocity(angularVelocity * decayFactor)
+      rotateRing(currentAngularVelocity * (isFocusLocked ? 0.3 : 1)) // Slow rotation when locked
+      setAngularVelocity(currentAngularVelocity * decayFactor)
 
-      if (isFocusLocked && Math.abs(angularVelocity) < 0.0005) {
+      if (isFocusLocked && Math.abs(currentAngularVelocity) < 0.0005) {
         setAngularVelocity(0)
       }
     } else {
-      setAngularVelocity(0)
+      // Only set to 0 if it's not already 0 to avoid unnecessary updates
+      if (currentAngularVelocity !== 0) {
+        setAngularVelocity(0)
+      }
     }
 
     // Separate zoom and rotation calculations to prevent interference
     // The zoom level (radius) is independent of rotation
-    const targetRadius = cameraZ || defaultCameraZ || 15
+    const storeState = useWeavStore.getState()
+    const targetRadius = storeState.cameraZ || storeState.defaultCameraZ || 15
 
     // Interpolate the radius (zoom) smoothly
     const currentRadius = Math.sqrt(
@@ -405,9 +416,12 @@ export function SphereScene({ threads, onNodeSelect }: SphereSceneProps) {
 
     // Calculate camera position based on rotations using the interpolated radius
     // This ensures rotation and zoom are completely independent
-    const x = Math.sin(ringRotation) * Math.cos(verticalRotation) * newRadius
-    const y = Math.sin(verticalRotation) * newRadius
-    const z = Math.cos(ringRotation) * Math.cos(verticalRotation) * newRadius
+    const currentRingRotation = storeState.ringRotation
+    const currentVerticalRotation = storeState.verticalRotation
+
+    const x = Math.sin(currentRingRotation) * Math.cos(currentVerticalRotation) * newRadius
+    const y = Math.sin(currentVerticalRotation) * newRadius
+    const z = Math.cos(currentRingRotation) * Math.cos(currentVerticalRotation) * newRadius
 
     // Optimized camera movement - smoother lerp for mobile
     const positionLerp = 0.3 // Increased from 0.25 for smoother movement
