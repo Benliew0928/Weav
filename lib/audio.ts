@@ -59,6 +59,12 @@ class SoundManager {
         }
     }
 
+    resumeBGM() {
+        if (this.bgm && !this.bgm.playing()) {
+            this.bgm.play()
+        }
+    }
+
     playSFX(key: string, volume: number = 0.5) {
         if (this.isMuted || !this.isSFXEnabled) return
 
