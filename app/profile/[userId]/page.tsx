@@ -9,6 +9,8 @@ import { getUserProfile } from '@/lib/firebase/users'
 import { User } from '@/data/sampleThreads'
 import { useParams } from 'next/navigation'
 
+export const runtime = 'edge'
+
 export default function PublicProfilePage() {
     const { userId } = useParams()
     const { theme, threads, currentUser } = useWeavStore()
@@ -60,8 +62,8 @@ export default function PublicProfilePage() {
     )
 
     const cardBase = `rounded-3xl border backdrop-blur-xl transition-colors ${theme === 'dark'
-            ? 'bg-white/5 border-white/10'
-            : 'bg-white/90 border-gray-200/80 shadow-lg'
+        ? 'bg-white/5 border-white/10'
+        : 'bg-white/90 border-gray-200/80 shadow-lg'
         }`
 
     if (loading) {
