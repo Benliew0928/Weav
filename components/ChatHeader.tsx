@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, X } from 'lucide-react'
+import { ArrowLeft, X, Trash2 } from 'lucide-react'
 import { Thread } from '@/data/sampleThreads'
 import { triggerHaptic } from '@/lib/perf'
 import { useWeavStore } from '@/store/useWeavStore'
 import { UserPresence } from '@/lib/firebase/presence'
+import { deleteThread } from '@/lib/firebase/threads'
 import { Avatar } from './Avatar'
 
 interface ChatHeaderProps {
@@ -19,7 +20,24 @@ interface ChatHeaderProps {
 export function ChatHeader({ thread, activeMembers, onlineUsers = [], onBack }: ChatHeaderProps) {
   const { theme } = useWeavStore()
   const [showUserList, setShowUserList] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const userListRef = useRef<HTMLDivElement>(null)
+
+  const handleDeleteThread = async () => {
+    try {
+      setIsDeleting(true)
+      await deleteThread(thread.id)
+      triggerHaptic([10, 10, 10])
+      onBack()
+    } catch (error) {
+      console.error('Failed to delete thread', error)
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+      // Provide a simple alert if it fails
+      alert('Failed to delete thread. Please try again.')
+    }
+  }
 
   // Close user list when clicking outside
   useEffect(() => {
@@ -84,6 +102,18 @@ export function ChatHeader({ thread, activeMembers, onlineUsers = [], onBack }: 
             {activeMembers} active now
           </p>
         </div>
+
+      <div className="flex items-center gap-2">
+        {/* Delete Thread Button */}
+        <motion.button
+          onClick={() => setShowDeleteConfirm(true)}
+          className={`p-2 rounded-button transition-colors ${theme === 'dark' ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-50 text-red-500'}`}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          aria-label="Delete thread"
+        >
+          <X className="w-6 h-6" strokeWidth={2.5} />
+        </motion.button>
 
         {/* Animated glow ring behind avatar cluster */}
         <div className="relative" ref={userListRef}>
@@ -172,6 +202,59 @@ export function ChatHeader({ thread, activeMembers, onlineUsers = [], onBack }: 
           </AnimatePresence>
         </div>
       </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className={`w-full max-w-sm overflow-hidden rounded-2xl shadow-2xl ${
+                theme === 'dark' ? 'bg-[#1a1a2e] border border-white/10' : 'bg-white border border-gray-100'
+              }`}
+            >
+              <div className="p-6">
+                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center mb-4 mx-auto">
+                  <Trash2 className="w-6 h-6 text-red-500 dark:text-red-400" />
+                </div>
+                <h3 className={`text-xl font-bold text-center mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  Delete Chat Room
+                </h3>
+                <p className={`text-center text-sm mb-6 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                  Are you absolutely sure you want to delete <span className="font-semibold text-red-500">"{thread.title}"</span>? This action cannot be undone and will permanently delete all messages and media.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleDeleteThread}
+                    disabled={isDeleting}
+                    className={`w-full py-3 px-4 rounded-xl font-medium focus:outline-none transition-colors duration-200 ${
+                      isDeleting 
+                        ? 'bg-red-500/50 cursor-not-allowed' 
+                        : 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30 hover:shadow-red-500/50'
+                    }`}
+                  >
+                    {isDeleting ? 'Deleting...' : 'Yes, delete forever'}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
+                    className={`w-full py-3 px-4 rounded-xl font-medium focus:outline-none transition-colors duration-200 ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 hover:bg-white/10 text-white' 
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

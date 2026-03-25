@@ -12,6 +12,8 @@ import {
   getDoc,
   where,
   arrayUnion,
+  deleteDoc,
+  writeBatch,
 } from 'firebase/firestore'
 import { db } from './config'
 import { Thread, User, Comment } from '@/data/sampleThreads'
@@ -189,4 +191,45 @@ export const addCommentToThread = async (threadId: string, comment: Comment) => 
   await updateDoc(threadRef, {
     comments: arrayUnion(commentData)
   })
+}
+
+// Delete a thread and its messages
+export const deleteThread = async (threadId: string): Promise<void> => {
+  const firestore = db
+  if (!firestore) throw new Error('Firebase Firestore not initialized')
+
+  try {
+    // 1. Delete all messages in the thread
+    const messagesRef = collection(firestore, 'threads', threadId, 'messages')
+    const messagesSnap = await getDocs(messagesRef)
+    
+    if (!messagesSnap.empty) {
+      const batches: any[] = []
+      let currentBatch = writeBatch(firestore)
+      let count = 0
+      
+      messagesSnap.forEach((docSnap) => {
+        currentBatch.delete(docSnap.ref)
+        count++
+        if (count === 500) {
+          batches.push(currentBatch.commit())
+          currentBatch = writeBatch(firestore)
+          count = 0
+        }
+      })
+      
+      if (count > 0) {
+        batches.push(currentBatch.commit())
+      }
+      
+      await Promise.all(batches)
+    }
+
+    // 2. Delete the thread itself
+    const threadRef = doc(firestore, 'threads', threadId)
+    await deleteDoc(threadRef)
+  } catch (error) {
+    console.error('Error deleting thread:', error)
+    throw new Error('Failed to delete thread')
+  }
 }
