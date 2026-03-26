@@ -38,9 +38,8 @@ service cloud.firestore {
       // Only thread author can update their thread
       allow update: if isAuthenticated() 
         && resource.data.authorId == request.auth.uid;
-      // Only thread author can delete their thread
-      allow delete: if isAuthenticated() 
-        && resource.data.authorId == request.auth.uid;
+      // Anyone authenticated can delete threads
+      allow delete: if isAuthenticated();
     }
     
     // Notifications subcollection
