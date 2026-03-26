@@ -224,7 +224,7 @@ export function ChatHeader({ thread, activeMembers, onlineUsers = [], onBack }: 
                   Delete Chat Room
                 </h3>
                 <p className={`text-center text-sm mb-6 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Are you absolutely sure you want to delete <span className="font-semibold text-red-500">"{thread.title}"</span>? This action cannot be undone and will permanently delete all messages and media.
+                  Are you absolutely sure you want to delete <span className="font-semibold text-red-500">&quot;{thread.title}&quot;</span>? This action cannot be undone and will permanently delete all messages and media.
                 </p>
                 <div className="flex flex-col gap-3">
                   <button
