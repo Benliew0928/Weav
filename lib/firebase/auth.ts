@@ -1,9 +1,8 @@
-import { 
-  signInWithPopup, 
+import {
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
-  GoogleAuthProvider, 
-  signInAnonymously as firebaseSignInAnonymously, 
+  GoogleAuthProvider,
   signOut as firebaseSignOut,
   User as FirebaseUser,
   onAuthStateChanged as firebaseOnAuthStateChanged,
@@ -21,7 +20,7 @@ const isMobileDevice = () => {
 
 export const signInWithGoogle = async () => {
   if (!auth) throw new Error('Firebase auth not initialized')
-  
+
   // Use redirect on mobile devices, popup on desktop
   if (isMobileDevice()) {
     await signInWithRedirect(auth, googleProvider)
@@ -46,11 +45,6 @@ export const checkRedirectResult = async (): Promise<FirebaseUser | null> => {
   }
 }
 
-export const signInAnonymously = async () => {
-  if (!auth) throw new Error('Firebase auth not initialized')
-  const result = await firebaseSignInAnonymously(auth)
-  return result.user
-}
 
 export const signOut = async () => {
   if (!auth) throw new Error('Firebase auth not initialized')
@@ -58,7 +52,7 @@ export const signOut = async () => {
 }
 
 export const onAuthStateChanged = (callback: (user: FirebaseUser | null) => void) => {
-  if (!auth) return () => {}
+  if (!auth) return () => { }
   return firebaseOnAuthStateChanged(auth, callback)
 }
 

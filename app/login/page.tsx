@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { GradientBackground } from '@/components/GradientBackground'
 import { useWeavStore } from '@/store/useWeavStore'
-import { signInWithGoogle, signInAnonymously as firebaseSignInAnonymously, onAuthStateChanged, checkRedirectResult } from '@/lib/firebase/auth'
+import { signInWithGoogle, onAuthStateChanged, checkRedirectResult } from '@/lib/firebase/auth'
 import { createUserProfile, getUserProfile } from '@/lib/firebase/users'
 import { firestoreToUser } from '@/lib/firebase/converters'
 
@@ -24,21 +24,21 @@ export default function LoginPage() {
         // Redirect result found, process it
         setCurrentUserId(redirectUser.uid)
         setAuthenticated(true)
-        
+
         let userProfile = await getUserProfile(redirectUser.uid)
         if (!userProfile) {
           await createUserProfile(redirectUser)
           userProfile = await getUserProfile(redirectUser.uid)
         }
-        
+
         if (userProfile) {
           setCurrentUser(userProfile)
         }
-        
+
         router.push('/')
       }
     }
-    
+
     handleRedirect()
   }, [router, setAuthenticated, setCurrentUserId, setCurrentUser])
 
@@ -48,18 +48,18 @@ export default function LoginPage() {
       if (firebaseUser) {
         setCurrentUserId(firebaseUser.uid)
         setAuthenticated(true)
-        
+
         // Get or create user profile
         let userProfile = await getUserProfile(firebaseUser.uid)
         if (!userProfile) {
           await createUserProfile(firebaseUser)
           userProfile = await getUserProfile(firebaseUser.uid)
         }
-        
+
         if (userProfile) {
           setCurrentUser(userProfile)
         }
-        
+
         router.push('/')
       } else {
         setCurrentUserId(null)
@@ -83,30 +83,11 @@ export default function LoginPage() {
     }
   }
 
-  const handleAnonymousLogin = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const firebaseUser = await firebaseSignInAnonymously()
-      // Auth state change will handle the rest
-    } catch (err: any) {
-      console.error('Anonymous login error:', err)
-      setError(err.message || 'Failed to sign in anonymously')
-      setLoading(false)
-    }
-  }
-
-  const handleEmailLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    // For now, email login will use anonymous sign-in
-    // You can implement email/password auth later if needed
-    handleAnonymousLogin()
-  }
 
   return (
     <div className="relative h-full flex items-center justify-center p-4 overflow-y-auto">
       <GradientBackground />
-      
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -134,24 +115,21 @@ export default function LoginPage() {
               Weav
             </span>
           </motion.h1>
-          <p className={`text-xl ${
-            theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-          }`}>
+          <p className={`text-xl ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+            }`}>
             Where ideas intertwine.
           </p>
         </div>
 
-          <div className={`glass rounded-card p-8 border space-y-4 transition-colors ${
-          theme === 'dark' ? 'border-white/10' : 'border-gray-200/50'
-        }`}>
+        <div className={`glass rounded-card p-8 border space-y-4 transition-colors ${theme === 'dark' ? 'border-white/10' : 'border-gray-200/50'
+          }`}>
           {error && (
-            <div className={`p-3 rounded-button text-sm ${
-              theme === 'dark' ? 'bg-red-500/20 text-red-400' : 'bg-red-50 text-red-600'
-            }`}>
+            <div className={`p-3 rounded-button text-sm ${theme === 'dark' ? 'bg-red-500/20 text-red-400' : 'bg-red-50 text-red-600'
+              }`}>
               {error}
             </div>
           )}
-          
+
           <motion.button
             onClick={handleGoogleLogin}
             disabled={loading}
@@ -180,48 +158,22 @@ export default function LoginPage() {
             <span>{loading ? 'Signing in...' : 'Continue with Google'}</span>
           </motion.button>
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className={`w-full border-t transition-colors ${
-                theme === 'dark' ? 'border-white/10' : 'border-gray-200/50'
-              }`}></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className={`px-2 bg-transparent ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                or
-              </span>
-            </div>
-          </div>
 
-          <motion.button
-            onClick={handleAnonymousLogin}
-            disabled={loading}
-            className="w-full px-6 py-3 rounded-button gradient-primary text-white font-medium shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={{ scale: loading ? 1 : 1.02 }}
-            whileTap={{ scale: loading ? 1 : 0.98 }}
-          >
-            {loading ? 'Signing in...' : 'Continue as Guest'}
-          </motion.button>
         </div>
 
-        <div className={`mt-8 text-center text-sm ${
-          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-        }`}>
-          <a 
-            href="/terms" 
-            className={`transition-colors mr-4 ${
-              theme === 'dark' ? 'hover:text-white' : 'hover:text-gray-900'
-            }`}
+        <div className={`mt-8 text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+          }`}>
+          <a
+            href="/terms"
+            className={`transition-colors mr-4 ${theme === 'dark' ? 'hover:text-white' : 'hover:text-gray-900'
+              }`}
           >
             Terms
           </a>
-          <a 
-            href="/privacy" 
-            className={`transition-colors ${
-              theme === 'dark' ? 'hover:text-white' : 'hover:text-gray-900'
-            }`}
+          <a
+            href="/privacy"
+            className={`transition-colors ${theme === 'dark' ? 'hover:text-white' : 'hover:text-gray-900'
+              }`}
           >
             Privacy
           </a>
