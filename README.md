@@ -1,5 +1,5 @@
 # WEAV — The Mind Garden
-
+# WEBSITE URL: https://weav.pages.dev/
 A pixel-perfect, production-quality web application built with Next.js 14, React Three Fiber, and Framer Motion. Explore conversation threads visually in a 3D interactive **Weav Garden Ring** — a toroidal ring layout where ideas bloom and intertwine.
 
 ## 🎨 Features
