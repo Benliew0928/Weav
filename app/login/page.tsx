@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { GradientBackground } from '@/components/GradientBackground'
 import { useWeavStore } from '@/store/useWeavStore'
-import { signInWithGoogle, onAuthStateChanged, checkRedirectResult } from '@/lib/firebase/auth'
+import { signInWithGoogle, onAuthStateChanged } from '@/lib/firebase/auth'
 import { createUserProfile, getUserProfile } from '@/lib/firebase/users'
 import { firestoreToUser } from '@/lib/firebase/converters'
 
@@ -16,31 +16,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Check for redirect result on mount (for mobile Google sign-in)
-  useEffect(() => {
-    const handleRedirect = async () => {
-      const redirectUser = await checkRedirectResult()
-      if (redirectUser) {
-        // Redirect result found, process it
-        setCurrentUserId(redirectUser.uid)
-        setAuthenticated(true)
-
-        let userProfile = await getUserProfile(redirectUser.uid)
-        if (!userProfile) {
-          await createUserProfile(redirectUser)
-          userProfile = await getUserProfile(redirectUser.uid)
-        }
-
-        if (userProfile) {
-          setCurrentUser(userProfile)
-        }
-
-        router.push('/')
-      }
-    }
-
-    handleRedirect()
-  }, [router, setAuthenticated, setCurrentUserId, setCurrentUser])
 
   // Listen for auth state changes
   useEffect(() => {
